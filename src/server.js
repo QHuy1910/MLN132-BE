@@ -31,9 +31,7 @@ const createServer = (port) => {
   });
 
   server.listen(port, () => {
-    const baseUrl = `http://localhost:${port}`;
-    // expose the actual server URL to the app via env so clients can fetch it
-    process.env.SERVER_URL = baseUrl;
+    const baseUrl = process.env.SERVER_URL || `http://localhost:${port}`;
 
     console.log(`
 =================================
