@@ -327,7 +327,7 @@ module.exports = (io) => {
       }
     });
 
-    socket.on('resolveEventQuestion', async ({ roomId, difficulty, isCorrect }) => {
+    socket.on('resolveEventQuestion', async ({ roomId, difficulty, isCorrect }, ack) => {
       try {
         if (userInfo.isSpectator) throw new Error('Spectators cannot resolve event questions');
         const room = await roomService.getRoomById(roomId);
@@ -354,8 +354,14 @@ module.exports = (io) => {
             ? '✅ Trả lời đúng! Chọn 1 trong 3 phần thưởng.'
             : '❌ Trả lời sai! Chọn 1 trong 3 hình phạt.'
         });
+        if (typeof ack === 'function') {
+          ack({ ok: true });
+        }
       } catch (error) {
-        socket.emit('error', { message: error.message });
+        emitSocketError(socket, 'resolveEventQuestion', error, userInfo);
+        if (typeof ack === 'function') {
+          ack({ ok: false, message: error?.message || String(error) });
+        }
       }
     });
 
@@ -437,7 +443,7 @@ module.exports = (io) => {
           choices: Array.isArray(choices) ? choices : []
         });
       } catch (error) {
-        emitSocketError(socket, 'resolveEventQuestion', error, userInfo);
+        emitSocketError(socket, 'eventRewardShuffled', error, userInfo);
       }
     });
 
