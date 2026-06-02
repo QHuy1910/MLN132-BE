@@ -4,6 +4,16 @@ const EVENT_CELL_INDEXES = new Set([5, 9, 13, 18, 22, 26, 30, 34, 39, 43, 49, 53
 
 const normalizeName = (name = '') => String(name).trim().toLowerCase();
 const generatePlayerId = () => `player-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+const emitSocketError = (socket, eventName, error, userInfo = {}) => {
+  const message = error?.message || String(error);
+  console.error(`[socket:${eventName}] ${message}`, {
+    socketId: socket.id,
+    roomId: userInfo.roomId,
+    name: userInfo.name,
+    role: userInfo.role
+  });
+  socket.emit('error', { message });
+};
 
 module.exports = (io) => {
   io.on('connection', (socket) => {
@@ -212,7 +222,7 @@ module.exports = (io) => {
           isCorrect: !!isCorrect
         });
       } catch (error) {
-        socket.emit('error', { message: error.message });
+        emitSocketError(socket, 'questionAnswerRevealed', error, userInfo);
       }
     });
 
@@ -427,7 +437,7 @@ module.exports = (io) => {
           choices: Array.isArray(choices) ? choices : []
         });
       } catch (error) {
-        socket.emit('error', { message: error.message });
+        emitSocketError(socket, 'resolveEventQuestion', error, userInfo);
       }
     });
 
