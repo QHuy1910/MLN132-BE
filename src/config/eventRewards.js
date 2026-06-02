@@ -1,11 +1,15 @@
 let rewardsData = null;
 
 try {
-  // Reuse the same reward table used by the frontend.
-  rewardsData = require('../../../FE/vite-project/src/data/rewards.json');
+  rewardsData = require('./rewards.json');
 } catch (error) {
-  console.warn('Could not load shared rewards.json, fallback to empty rewards.', error?.message || error);
-  rewardsData = {};
+  try {
+    // Local development fallback when backend and frontend live in the same workspace.
+    rewardsData = require('../../../FE/vite-project/src/data/rewards.json');
+  } catch (fallbackError) {
+    console.warn('Could not load rewards.json, fallback to empty rewards.', fallbackError?.message || fallbackError);
+    rewardsData = {};
+  }
 }
 
 const SUPPORTED_REWARD_TYPES = new Set([
