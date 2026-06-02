@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly Game</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        button:hover:not(:disabled) {
+            opacity: 0.8;
+        }
+
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Room List Page */
+        .room-list-container {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 30px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .sidebar {
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .player-setup {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .player-setup h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+        }
+
+        .icon-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .icon-btn {
+            padding: 12px;
+            font-size: 24px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .icon-btn:hover {
+            border-color: #667eea;
+            transform: scale(1.05);
+        }
+
+        .icon-btn.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: scale(1.1);
+        }
+
+        .preview-text {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+
+        .role-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .role-btn {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .role-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .btn-create-room {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .rooms-section h2 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .room-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .room-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        .room-header h3 {
+            color: #333;
+            margin: 0;
+            font-size: 18px;
+            flex: 1;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.waiting {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.playing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .room-info {
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .room-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .room-info strong {
+            color: #333;
+        }
+
+        .room-players {
+            margin-bottom: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .players-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .players-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .player-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .btn-join {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+            padding: 10px 20px;
+        }
+
+        /* Lobby Page */
+        .lobby-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .lobby-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+        }
+
+        .lobby-header h1 {
+            flex: 1;
+            margin: 0 20px;
+            font-size: 32px;
+        }
+
+        .lobby-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .players-section, .spectators-section {
+            margin-bottom: 40px;
+        }
+
+        .players-section h2, .spectators-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .players-container, .spectators-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .player-card, .spectator-card {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .player-card.current, .spectator-card.current {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .player-icon, .spectator-icon {
+            font-size: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 6px;
+        }
+
+        .player-info, .spectator-info {
+            flex: 1;
+        }
+
+        .player-name, .spectator-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .player-status, .spectator-status {
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        .status-dot.disconnected {
+            background: #dc3545;
+        }
+
+        .player-money {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .info-section {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-item .label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .info-item .value {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-start-game {
+            background: #28a745;
+            color: white;
+            font-weight: 600;
+            padding: 12px 24px;
+        }
+
+        .btn-leave {
+            background: #dc3545;
+            color: white;
+            font-weight: 600;
+            padding: 12px 24px;
+        }
+
+        /* Game Board */
+        .game-board-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .game-header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .current-player-info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px 25px;
+            border-radius: 6px;
+        }
+
+        .game-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+
+        .board-wrapper {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-board {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #fff9e6 0%, #ffe6e6 100%);
+            border: 3px solid #333;
+            border-radius: 10px;
+        }
+
+        .board-tiles {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            gap: 1px;
+            padding: 10px;
+            background: #fefaf0;
+        }
+
+        .tile {
+            position: relative;
+            border: 1px solid #ddd;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            min-height: 50px;
+        }
+
+        .tile.corner {
+            background: #e0e0e0;
+            font-weight: bold;
+        }
+
+        .player-on-tile {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .game-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .game-panel h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .dice-display {
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .dice-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .btn-roll-dice {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .btn-roll-dice:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-end-turn {
+            width: 100%;
+            background: #6c757d;
+            color: white;
+            font-weight: 600;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .players-stats {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .player-stat {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .player-stat.current {
+            background: #f0f4ff;
+            border-left-color: #667eea;
+        }
+
+        .stat-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .stat-money {
+            font-size: 12px;
+            color: #28a745;
+        }
+
+        .stat-position {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .loading-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: white;
+            font-size: 24px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .info-message {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #bee5eb;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 32px;
+            }
+
+            .game-content {
+                grid-template-columns: 1fr;
+            }
+
+            .game-panel {
+                position: static;
+            }
+
+            .room-players {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        const { useState, useEffect, useRef } = React;
+        const API_BASE = 'http://localhost:3000';
+
+        // Helper functions
+        const getAPI = async (url) => axios.get(`${API_BASE}${url}`).then(r => r.data);
+        const postAPI = async (url, data) => axios.post(`${API_BASE}${url}`, data).then(r => r.data);
+
+        // Main App Component
+        function App() {
+            const [page, setPage] = useState('rooms');
+            const [rooms, setRooms] = useState([]);
+            const [currentRoom, setCurrentRoom] = useState(null);
+            const [playerName, setPlayerName] = useState(localStorage.getItem('playerName') || '');
+            const [selectedIcon, setSelectedIcon] = useState(localStorage.getItem('selectedIcon') || '🤖');
+            const [userRole, setUserRole] = useState(localStorage.getItem('userRole') || 'player');
+            const [socket, setSocket] = useState(null);
+            const socketRef = useRef(null);
+
+            // Initialize socket
+            useEffect(() => {
+                const newSocket = io(API_BASE);
+                socketRef.current = newSocket;
+                setSocket(newSocket);
+                return () => newSocket.close();
+            }, []);
+
+            // Load rooms
+            useEffect(() => {
+                const loadRooms = async () => {
+                    try {
+                        const data = await getAPI('/api/rooms');
+                        setRooms(data);
+                    } catch (error) {
+                        console.error('Failed to load rooms:', error);
+                    }
+                };
+
+                loadRooms();
+                const interval = setInterval(loadRooms, 3000);
+                return () => clearInterval(interval);
+            }, []);
+
+            const PLAYER_ICONS = ['🤖', '🦁', '🐯', '🦊', '🐻', '🐼', '🐨', '🐸'];
+
+            if (page === 'rooms') {
+                return <RoomListPage rooms={rooms} onJoinRoom={(room) => { setCurrentRoom(room); setPage('lobby'); }} playerName={playerName} setPlayerName={setPlayerName} selectedIcon={selectedIcon} setSelectedIcon={setSelectedIcon} userRole={userRole} setUserRole={setUserRole} PLAYER_ICONS={PLAYER_ICONS} />;
+            } else if (page === 'lobby') {
+                return <RoomLobbyPage room={currentRoom} playerName={playerName} selectedIcon={selectedIcon} userRole={userRole} socket={socketRef.current} onStartGame={() => setPage('game')} onLeave={() => { setPage('rooms'); setCurrentRoom(null); }} />;
+            } else if (page === 'game') {
+                return <GameBoardPage room={currentRoom} playerName={playerName} socket={socketRef.current} onLeave={() => { setPage('rooms'); setCurrentRoom(null); }} />;
+            }
+        }
+
+        // Room List Page
+        function RoomListPage({ rooms, onJoinRoom, playerName, setPlayerName, selectedIcon, setSelectedIcon, userRole, setUserRole, PLAYER_ICONS }) {
+            const [newRoomName, setNewRoomName] = useState('');
+            const [showCreateModal, setShowCreateModal] = useState(false);
+            const [loading, setLoading] = useState(false);
+
+            const handleCreateRoom = async () => {
+                if (!newRoomName.trim() || !playerName.trim()) return;
+
+                setLoading(true);
+                try {
+                    const newRoom = await postAPI('/api/rooms', { name: newRoomName, host: playerName, maxPlayers: 4 });
+                    localStorage.setItem('playerName', playerName);
+                    localStorage.setItem('selectedIcon', selectedIcon);
+                    localStorage.setItem('userRole', userRole);
+                    onJoinRoom(newRoom);
+                    setNewRoomName('');
+                } catch (error) {
+                    alert('Error creating room');
+                } finally {
+                    setLoading(false);
+                    setShowCreateModal(false);
+                }
+            };
+
+            const handleJoinRoom = (room) => {
+                if (!playerName.trim()) {
+                    alert('Please enter your name');
+                    return;
+                }
+                localStorage.setItem('playerName', playerName);
+                localStorage.setItem('selectedIcon', selectedIcon);
+                localStorage.setItem('userRole', userRole);
+                onJoinRoom(room);
+            };
+
+            return (
+                <div className="room-list-container">
+                    <header className="header">
+                        <h1>🎲 Monopoly Game</h1>
+                        <p>Join or create a game room</p>
+                    </header>
+
+                    <div className="main-content">
+                        <div className="sidebar">
+                            <div className="player-setup">
+                                <h3>Your Info</h3>
+                                <div className="form-group">
+                                    <label>Player Name</label>
+                                    <input type="text" value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Enter your name" maxLength="20" />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Choose Avatar</label>
+                                    <div className="icon-selector">
+                                        {PLAYER_ICONS.map((icon) => (
+                                            <button key={icon} className={`icon-btn ${selectedIcon === icon ? 'active' : ''}`} onClick={() => setSelectedIcon(icon)} style={{fontSize: '24px'}}>
+                                                {icon}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="preview-text">Your avatar: {selectedIcon}</div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Role</label>
+                                    <div className="role-selector">
+                                        <button className={`role-btn ${userRole === 'player' ? 'active' : ''}`} onClick={() => setUserRole('player')}>👤 Player</button>
+                                        <button className={`role-btn ${userRole === 'spectator' ? 'active' : ''}`} onClick={() => setUserRole('spectator')}>👁️ Spectator</button>
+                                    </div>
+                                </div>
+
+                                <button className="btn-create-room" onClick={() => setShowCreateModal(true)}>
+                                    + Create Room
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="rooms-section">
+                            <h2>Game Rooms ({rooms.length})</h2>
+                            <div className="rooms-grid">
+                                {rooms.length === 0 ? (
+                                    <div className="empty-state">No rooms yet. Create one!</div>
+                                ) : (
+                                    rooms.map((room) => (
+                                        <div key={room._id} className="room-card">
+                                            <div className="room-header">
+                                                <h3>{room.name}</h3>
+                                                <span className={`status-badge ${room.status}`}>{room.status}</span>
+                                            </div>
+                                            <div className="room-info">
+                                                <p>👤 Host: <strong>{room.host}</strong></p>
+                                                <p>🎮 Players: <strong>{room.players?.length || 0}/{room.maxPlayers}</strong></p>
+                                                <p>👁️ Spectators: <strong>{room.spectators?.length || 0}</strong></p>
+                                            </div>
+                                            <div className="room-players">
+                                                <p className="players-label">Players:</p>
+                                                <div className="players-list">
+                                                    {room.players && room.players.length > 0 ? (
+                                                        room.players.map((p) => (<span key={p.playerId} className="player-tag">{p.name}</span>))
+                                                    ) : (
+                                                        <span style={{color: '#999'}}>No players yet</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button className="btn-join" onClick={() => handleJoinRoom(room)} disabled={room.status === 'playing'}>
+                                                {room.status === 'playing' ? 'Playing' : 'Join Room'}
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {showCreateModal && (
+                        <div className="modal-overlay">
+                            <div className="modal">
+                                <h2>Create New Room</h2>
+                                <div className="form-group">
+                                    <label>Room Name</label>
+                                    <input type="text" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} placeholder="Enter room name" maxLength="30" />
+                                </div>
+                                <div className="modal-actions">
+                                    <button className="btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                                    <button className="btn-primary" onClick={handleCreateRoom} disabled={loading}>{loading ? 'Creating...' : 'Create'}</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Room Lobby Page
+        function RoomLobbyPage({ room, playerName, selectedIcon, userRole, socket, onStartGame, onLeave }) {
+            const [updatedRoom, setUpdatedRoom] = useState(room);
+
+            useEffect(() => {
+                const loadRoom = async () => {
+                    try {
+                        const data = await getAPI(`/api/rooms/${room._id}`);
+                        setUpdatedRoom(data);
+                    } catch (error) {
+                        console.error('Failed to load room:', error);
+                    }
+                };
+
+                const joinRoom = async () => {
+                    try {
+                        if (userRole === 'spectator') {
+                            await postAPI(`/api/rooms/${room._id}/spectators`, { name: playerName });
+                        } else {
+                            await postAPI(`/api/rooms/${room._id}/join`, { name: playerName, icon: selectedIcon });
+                        }
+                        if (socket) {
+                            if (userRole === 'spectator') {
+                                socket.emit('joinAsSpectator', { roomId: room._id, spectatorName: playerName });
+                            } else {
+                                socket.emit('joinRoom', { roomId: room._id, playerName });
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to join room:', error);
+                    }
+                };
+
+                joinRoom();
+                loadRoom();
+                const interval = setInterval(loadRoom, 2000);
+
+                if (socket) {
+                    socket.on('gameStarted', onStartGame);
+                }
+
+                return () => {
+                    clearInterval(interval);
+                    if (socket) socket.off('gameStarted', onStartGame);
+                };
+            }, [room._id, playerName, userRole, socket, onStartGame]);
+
+            const isHost = updatedRoom.host === playerName;
+            const canStartGame = isHost && updatedRoom.players?.length >= 2;
+
+            const handleStartGame = async () => {
+                try {
+                    await postAPI(`/api/rooms/${updatedRoom._id}/start`, {});
+                    if (socket) socket.emit('startGame', { roomId: updatedRoom._id });
+                    onStartGame();
+                } catch (error) {
+                    alert('Error starting game');
+                }
+            };
+
+            const handleLeaveRoom = async () => {
+                try {
+                    await postAPI(`/api/rooms/${updatedRoom._id}/leave`, { name: playerName });
+                    if (socket) {
+                        if (userRole === 'spectator') {
+                            socket.emit('leaveAsSpectator', { roomId: updatedRoom._id, spectatorName: playerName });
+                        } else {
+                            socket.emit('leaveRoom', { roomId: updatedRoom._id, playerName });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error leaving room:', error);
+                } finally {
+                    onLeave();
+                }
+            };
+
+            return (
+                <div className="lobby-container">
+                    <div className="lobby-header">
+                        <button className="btn-back" onClick={handleLeaveRoom}>← Back</button>
+                        <h1>{updatedRoom.name}</h1>
+                        <span className="status-badge" style={{marginBottom: '0'}}>{updatedRoom.status}</span>
+                    </div>
+
+                    <div className="lobby-content">
+                        <div className="players-section">
+                            <h2>👥 Players ({updatedRoom.players?.length || 0}/{updatedRoom.maxPlayers})</h2>
+                            <div className="players-container">
+                                {updatedRoom.players && updatedRoom.players.length > 0 ? (
+                                    updatedRoom.players.map((player) => (
+                                        <div key={player.playerId} className={`player-card ${player.name === playerName ? 'current' : ''}`}>
+                                            <div className="player-icon">👤</div>
+                                            <div className="player-info">
+                                                <div className="player-name">{player.name}{player.name === playerName ? ' (You)' : ''}{updatedRoom.host === player.name ? ' (Host)' : ''}</div>
+                                                <div className="player-status"><span className={`status-dot ${player.isConnected ? 'connected' : 'disconnected'}`}></span>{player.isConnected ? 'Connected' : 'Offline'}</div>
+                                            </div>
+                                            <div className="player-money">💰 {player.money}</div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="empty-state">No players yet</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {updatedRoom.spectators && updatedRoom.spectators.length > 0 && (
+                            <div className="spectators-section">
+                                <h2>👁️ Spectators ({updatedRoom.spectators.length})</h2>
+                                <div className="spectators-container">
+                                    {updatedRoom.spectators.map((spectator) => (
+                                        <div key={spectator.spectatorId} className={`spectator-card ${spectator.name === playerName ? 'current' : ''}`}>
+                                            <div className="spectator-icon">👁️</div>
+                                            <div className="spectator-info">
+                                                <div className="spectator-name">{spectator.name}{spectator.name === playerName ? ' (You)' : ''}</div>
+                                                <div className="spectator-status"><span className={`status-dot ${spectator.isConnected ? 'connected' : 'disconnected'}`}></span>{spectator.isConnected ? 'Connected' : 'Offline'}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="info-section">
+                            <h3>Room Info</h3>
+                            <div className="info-grid">
+                                <div className="info-item"><span className="label">Host:</span><span className="value">{updatedRoom.host}</span></div>
+                                <div className="info-item"><span className="label">Status:</span><span className="value">{updatedRoom.status}</span></div>
+                                <div className="info-item"><span className="label">Board Size:</span><span className="value">{updatedRoom.boardSize} tiles</span></div>
+                            </div>
+                        </div>
+
+                        <div className="actions">
+                            {isHost && canStartGame && <button className="btn-start-game" onClick={handleStartGame}>🎮 Start Game</button>}
+                            {isHost && !canStartGame && updatedRoom.players?.length < 2 && <div className="info-message">Need at least 2 players to start</div>}
+                            <button className="btn-leave" onClick={handleLeaveRoom}>Leave Room</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Game Board Page
+        function GameBoardPage({ room, playerName, socket, onLeave }) {
+            const [gameState, setGameState] = useState(null);
+            const [diceValue, setDiceValue] = useState(null);
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const loadGameState = async () => {
+                    try {
+                        const data = await getAPI(`/api/rooms/${room._id}`);
+                        setGameState(data);
+                        setLoading(false);
+                    } catch (error) {
+                        setError('Failed to load game state');
+                        setLoading(false);
+                    }
+                };
+
+                loadGameState();
+                const interval = setInterval(loadGameState, 1000);
+
+                if (socket) {
+                    socket.on('diceRolled', (data) => setDiceValue(data.value));
+                    socket.on('playerMoved', () => setDiceValue(null));
+                    socket.on('turnEnded', () => setDiceValue(null));
+                }
+
+                return () => {
+                    clearInterval(interval);
+                    if (socket) {
+                        socket.off('diceRolled');
+                        socket.off('playerMoved');
+                        socket.off('turnEnded');
+                    }
+                };
+            }, [room._id, socket]);
+
+            const handleRollDice = async () => {
+                try {
+                    await postAPI(`/api/rooms/${room._id}/rollDice`, {});
+                    if (socket) socket.emit('rollDice', { roomId: room._id });
+                } catch (error) {
+                    setError('Error rolling dice');
+                }
+            };
+
+            const handleEndTurn = async () => {
+                try {
+                    await postAPI(`/api/rooms/${room._id}/endTurn`, {});
+                    if (socket) socket.emit('endTurn', { roomId: room._id });
+                    setDiceValue(null);
+                } catch (error) {
+                    setError('Error ending turn');
+                }
+            };
+
+            if (loading) return <div className="loading-page">Loading game...</div>;
+            if (!gameState) return <div className="loading-page">Game not found</div>;
+
+            const currentPlayer = gameState.players?.[gameState.currentTurnIndex];
+            const isCurrentPlayer = currentPlayer?.name === playerName;
+            const boardSize = gameState.boardSize || 20;
+
+            return (
+                <div className="game-board-container">
+                    <div className="game-header">
+                        <h1>🎲 Monopoly Game</h1>
+                        <div className="current-player-info">
+                            {currentPlayer && <div>Current Turn: <strong>{currentPlayer.name}</strong> {isCurrentPlayer ? '(Your Turn!)' : ''}</div>}
+                        </div>
+                        <button className="btn-back" onClick={onLeave}>← Leave Game</button>
+                    </div>
+
+                    <div className="game-content">
+                        <div className="board-wrapper">
+                            <div className="game-board">
+                                <div className="board-tiles">
+                                    {Array.from({ length: boardSize }).map((_, index) => (
+                                        <div key={index} className={`tile ${[0, 9, 10*9, 10*9+9].includes(index) ? 'corner' : ''}`}>
+                                            #{index + 1}
+                                            {gameState.players?.map((player) => (
+                                                player.position === index && (
+                                                    <div key={player.playerId} className="player-on-tile" title={player.name}>
+                                                        👤
+                                                    </div>
+                                                )
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="game-panel">
+                            <h3>🎮 Game Control</h3>
+                            {error && <div className="error-message">{error}</div>}
+
+                            <div className="dice-display">
+                                <div>Dice Roll</div>
+                                <div className="dice-value">{diceValue || '?'}</div>
+                            </div>
+
+                            {isCurrentPlayer ? (
+                                <>
+                                    <button className="btn-roll-dice" onClick={handleRollDice} disabled={diceValue !== null}>
+                                        🎲 Roll Dice
+                                    </button>
+                                    <button className="btn-end-turn" onClick={handleEndTurn}>
+                                        ➡️ End Turn
+                                    </button>
+                                </>
+                            ) : (
+                                <div style={{padding: '10px', textAlign: 'center', color: '#666'}}>
+                                    Waiting for {currentPlayer?.name}'s turn...
+                                </div>
+                            )}
+
+                            <div style={{marginTop: '20px'}}>
+                                <h3 style={{marginBottom: '10px'}}>Players</h3>
+                                <div className="players-stats">
+                                    {gameState.players?.map((player) => (
+                                        <div key={player.playerId} className={`player-stat ${player.name === currentPlayer?.name ? 'current' : ''}`}>
+                                            <div className="stat-name">{player.name} {player.name === playerName ? '(You)' : ''}</div>
+                                            <div className="stat-money">💰 ${player.money}</div>
+                                            <div className="stat-position">Position: {player.position}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

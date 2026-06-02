@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monopoly Rooms Browser</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    #diceBox{
+  width:60px;
+  height:60px;
+  background:white;
+  border:3px solid black;
+  border-radius:12px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  font-size:40px;
+  margin:10px 0;
+
+  transition:0.2s;
+}
+
+.roll-animation{
+  animation: shake .4s;
+}
+
+@keyframes shake{
+  0%{ transform:rotate(0deg); }
+  25%{ transform:rotate(15deg); }
+  50%{ transform:rotate(-15deg); }
+  75%{ transform:rotate(10deg); }
+  100%{ transform:rotate(0deg); }
+}
+    :root {
+      --bg1: #0f172a;
+      --bg2: #111827;
+      --card: rgba(17, 24, 39, 0.85);
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --line: rgba(148, 163, 184, 0.15);
+      --accent: #22c55e;
+      --accent2: #38bdf8;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --glass: rgba(15, 23, 42, 0.7);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.15), transparent 40%),
+        radial-gradient(circle at 90% 10%, rgba(34, 197, 94, 0.12), transparent 35%),
+        linear-gradient(160deg, var(--bg1), var(--bg2));
+      background-attachment: fixed;
+    }
+
+    .wrap {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 24px;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: clamp(26px, 3.5vw, 38px);
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 30%, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 720px;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 24px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .card-header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .card-body {
+      padding: 24px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 130px;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    input, button, select {
+      border: 0;
+      border-radius: 16px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input::placeholder { color: #64748b; }
+    input:focus {
+      border-color: var(--accent2);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+
+    button {
+      padding: 14px 16px;
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .btn-primary { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+    .btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #2563eb, #0891b2); }
+    
+    .btn-success { background: linear-gradient(135deg, #10b981, #22c55e); }
+    .btn-success:hover:not(:disabled) { background: linear-gradient(135deg, #059669, #16a34a); }
+
+    .btn-dark {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+    .btn-dark:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-danger { background: linear-gradient(135deg, #ef4444, #f97316); }
+    .btn-danger:hover:not(:disabled) { background: linear-gradient(135deg, #dc2626, #ea580c); }
+
+    .rooms {
+      display: grid;
+      gap: 14px;
+    }
+
+    .room {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      padding: 20px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      transition: all 0.2s ease;
+    }
+    .room:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .room h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .room-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      font-weight: 500;
+    }
+
+    .status-waiting { color: #86efac; }
+    .status-playing { color: #38bdf8; }
+    .status-finished { color: #fca5a5; }
+
+    .room-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 140px;
+      justify-content: center;
+    }
+    
+    .room-actions button {
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+
+    .status {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      font-size: 14px;
+      align-items: center;
+    }
+    
+    .status-row span {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .status-row strong {
+      color: var(--text);
+    }
+
+    .log {
+      height: 240px;
+      overflow-y: auto;
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--line);
+      font-size: 13px;
+      line-height: 1.6;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    .log-item { margin-bottom: 8px; color: #cbd5e1; }
+    .log-item.info { color: #60a5fa; }
+    .log-item.success { color: #34d399; }
+    .log-item.error { color: #f87171; }
+
+    .game-panel {
+      margin-top: 16px;
+      display: none;
+    }
+
+    .game-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+      margin-bottom: 20px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+      margin-bottom: 20px;
+    }
+
+    .tile {
+      min-height: 76px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .tile.active {
+      outline: 2px solid var(--accent2);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.1);
+      border-color: var(--accent2);
+    }
+    
+    .tile strong {
+      color: var(--accent2);
+    }
+
+    /* Create Room Section */
+    .create-section {
+      margin-bottom: 20px;
+    }
+
+    .create-toggle {
+      width: 100%;
+      padding: 16px 20px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(56, 189, 248, 0.08));
+      border: 1px dashed rgba(34, 197, 94, 0.35);
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.3s ease;
+    }
+    .create-toggle:hover {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.14), rgba(56, 189, 248, 0.14));
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(34, 197, 94, 0.15);
+    }
+    .create-toggle .chevron {
+      transition: transform 0.3s ease;
+      font-size: 12px;
+    }
+    .create-toggle.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .create-form {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.3s ease;
+      opacity: 0;
+      padding: 0 20px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid transparent;
+    }
+    .create-form.open {
+      max-height: 400px;
+      opacity: 1;
+      padding: 20px;
+      margin-top: 12px;
+      border-color: var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .create-form .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .create-form .form-grid.full {
+      grid-template-columns: 1fr;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .create-form select {
+      width: 100%;
+      padding: 14px 16px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      outline: none;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+    }
+    .create-form select:focus {
+      border-color: var(--accent2);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+
+    .btn-create {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-create::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transition: left 0.5s ease;
+    }
+    .btn-create:hover:not(:disabled)::before {
+      left: 100%;
+    }
+    .btn-create:hover:not(:disabled) {
+      background: linear-gradient(135deg, #059669, #0891b2);
+    }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: 1fr; }
+      .room { grid-template-columns: 1fr; }
+      .room-actions { min-width: 0; flex-direction: row; flex-wrap: wrap; }
+      .room-actions button { flex: 1 1 120px; }
+      .create-form .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <div class="pill">Monopoly board game room manager</div>
+        <h1>Danh sách phòng chơi</h1>
+        <p>Trang quản lý phòng và chơi game Monopoly thời gian thực. Hãy kết nối tới server, tạo hoặc chọn tham gia một phòng sẵn có làm <strong>Người chơi (Join)</strong> hoặc <strong>Người xem (Spectate)</strong> để trải nghiệm game.</p>
+      </div>
+      <div class="pill" id="connectionPill" style="border-color: var(--danger); color: #f87171;">Chưa kết nối</div>
+    </div>
+
+    <div class="grid">
+      <!-- PANEL TRÁI: DANH SÁCH PHÒNG -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Các phòng đang mở</h2>
+          <button class="btn-dark" id="refreshBtn">🔄 Tải lại</button>
+        </div>
+        <div class="card-body">
+          <div class="controls">
+            <input id="playerName" placeholder="Tên của bạn (Tự động tạo nếu bỏ trống)" />
+            <input id="serverUrl" placeholder="Server URL" />
+            <button class="btn-primary" id="connectBtn">🔌 Kết nối</button>
+          </div>
+
+          <!-- TẠO PHÒNG MỚI -->
+          <div class="create-section">
+            <button class="create-toggle" id="createToggle" type="button">
+              <span>➕ Tạo phòng mới</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="create-form" id="createForm">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="createRoomName">Tên phòng</label>
+                  <input id="createRoomName" placeholder="VD: Phòng cuối tuần" />
+                </div>
+                <div class="form-group">
+                  <label for="createHostName">Tên chủ phòng</label>
+                  <input id="createHostName" placeholder="VD: Huy" />
+                </div>
+              </div>
+              <div class="form-grid full">
+                <div class="form-group">
+                  <label for="createMaxPlayers">Số người chơi tối đa</label>
+                  <select id="createMaxPlayers">
+                    <option value="2">2 người chơi</option>
+                    <option value="3">3 người chơi</option>
+                    <option value="4" selected>4 người chơi</option>
+                    <option value="5">5 người chơi</option>
+                    <option value="6">6 người chơi</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn-create" id="createRoomBtn" type="button">🏠 Tạo phòng ngay</button>
+            </div>
+          </div>
+
+          <div class="rooms" id="roomsList"></div>
+        </div>
+      </section>
+
+      <!-- PANEL PHẢI: TRẠNG THÁI PHÒNG HIỆN TẠI -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Phòng hiện tại</h2>
+          <button class="btn-danger" id="leaveBtn" disabled>🚪 Rời phòng</button>
+        </div>
+        <div class="card-body">
+          <div class="status">
+            <div class="status-row"><span>Tên người chơi</span><strong id="currentPlayerLabel">-</strong></div>
+            <div class="status-row"><span>Phòng</span><strong id="currentRoomLabel">-</strong></div>
+            <div class="status-row"><span>Vai trò</span><strong id="roleLabel">-</strong></div>
+            <div class="status-row"><span>Trạng thái phòng</span><strong id="gameStatusLabel">-</strong></div>
+            <div class="status-row"><span>Lượt đi của</span><strong id="turnLabel">-</strong></div>
+<div class="status-row">
+  <span>Kết quả xúc xắc</span>
+
+  <div id="diceBox">🎲</div>
+
+  <strong id="diceLabel">-</strong>
+</div>            <div class="status-row"><span>Người xem (Spectators)</span><strong id="spectatorsCountLabel">0</strong></div>
+          </div>
+
+          <!-- Danh sách người xem -->
+          <div id="spectatorsPanel" style="display: none; margin-bottom: 16px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--line);">
+            <h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px;">👁️ Người xem hiện tại</h4>
+            <div id="spectatorsList" style="font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+          </div>
+
+          <div id="joinHint" class="pill" style="margin-bottom: 16px; width: 100%; justify-content: center; background: rgba(56, 189, 248, 0.05); border-color: rgba(56, 189, 248, 0.2); color: var(--accent2);">Chọn Join hoặc Spectate ở một phòng để tham gia</div>
+
+          <!-- Gameplay area -->
+          <div class="game-panel" id="gamePanel">
+            <div class="game-actions">
+              <button class="btn-success" id="startBtn" disabled>🚀 Bắt đầu</button>
+              <button class="btn-primary" id="rollBtn" disabled>🎲 Tung xúc xắc</button>
+              <button class="btn-dark" id="moveBtn" disabled>➡️ Di chuyển</button>
+              <button class="btn-dark" id="endTurnBtn" disabled>⏭️ Hết lượt</button>
+            </div>
+            
+            <div id="spectatorMsg" style="display: none; margin-bottom: 16px; padding: 14px; border-radius: 16px; background: rgba(56, 189, 248, 0.05); border-left: 4px solid var(--accent2); font-size: 13px; line-height: 1.5;">
+              <strong>👁️ Bạn đang ở chế độ xem:</strong> Bạn không thể thực hiện các thao tác chơi game. Hãy theo dõi chuyển động của các người chơi trên bản đồ.
+            </div>
+
+            <div class="board" id="board"></div>
+          </div>
+
+          <div class="log" id="log"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    let socket = null;
+    let baseUrl = '';
+    let rooms = [];
+    let currentRoom = null;
+    let currentRoomId = null;
+    let currentPlayerName = '';
+    let currentPlayerId = '';
+    let isSpectator = false;
+    let gameState = {
+      players: [],
+      spectators: [],
+      currentTurnIndex: 0,
+      hasRolledThisTurn: false,
+      status: 'waiting',
+      boardSize: 20,
+      currentPlayer: null,
+      lastDice: null,
+      host: null
+    };
+
+    const el = (id) => document.getElementById(id);
+    const logBox = el('log');
+
+    function log(message, type = 'info') {
+      const row = document.createElement('div');
+      row.className = `log-item ${type}`;
+      row.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logBox.prepend(row);
+    }
+
+    function setText(id, value) {
+      const node = el(id);
+      if (node) node.textContent = value;
+    }
+
+    function setConnectionState(connected) {
+      const pill = el('connectionPill');
+      if (connected) {
+        pill.textContent = `Đã kết nối: ${baseUrl}`;
+        pill.style.borderColor = 'var(--accent)';
+        pill.style.color = '#34d399';
+        pill.style.background = 'rgba(34, 197, 94, 0.05)';
+      } else {
+        pill.textContent = 'Chưa kết nối';
+        pill.style.borderColor = 'var(--danger)';
+        pill.style.color = '#f87171';
+        pill.style.background = 'rgba(239, 68, 68, 0.05)';
+      }
+    }
+
+    async function resolveServerUrl() {
+      const serverInput = el('serverUrl');
+      try {
+        const res = await fetch('/server-config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.serverUrl) {
+            baseUrl = data.serverUrl.replace(/\/$/, '');
+            if (serverInput) serverInput.value = baseUrl;
+            return baseUrl;
+          }
+        }
+      } catch (err) {
+        // fall back below
+      }
+      baseUrl = (serverInput.value || window.location.origin).replace(/\/$/, '');
+      if (serverInput && !serverInput.value.trim()) serverInput.value = baseUrl;
+      return baseUrl;
+    }
+
+    function connectSocket() {
+      if (socket) socket.disconnect();
+      socket = io(baseUrl || window.location.origin);
+      
+      socket.on('connect', () => {
+        setConnectionState(true);
+        log(`Socket kết nối thành công: ${socket.id}`, 'success');
+      });
+      
+      socket.on('disconnect', () => {
+        setConnectionState(false);
+        log('Mất kết nối socket', 'error');
+      });
+      
+      socket.on('playerJoined', (data) => {
+        if (data.players) gameState.players = data.players;
+        if (data.spectators) gameState.spectators = data.spectators;
+        updateRoomState(data);
+        log(`${data.name} đã tham gia phòng`, 'success');
+      });
+      
+      socket.on('spectatorJoined', (data) => {
+        if (data.spectators) {
+          gameState.spectators = data.spectators;
+          updateRoomState({ spectators: data.spectators });
+        }
+        log(`${data.name} đã tham gia với vai trò người xem 👁️`, 'info');
+      });
+
+      socket.on('playerLeft', (data) => {
+        if (data.players) gameState.players = data.players;
+        updateRoomState(data);
+        log(`${data.name} đã rời phòng`, 'info');
+      });
+
+      socket.on('spectatorLeft', (data) => {
+        if (data.spectators) {
+          gameState.spectators = data.spectators;
+          updateRoomState({ spectators: data.spectators });
+        }
+        log(`${data.name} (người xem) đã rời phòng 🚪`, 'info');
+      });
+
+      socket.on('gameStarted', (data) => {
+        gameState = { ...gameState, ...data };
+        gameState.hasRolledThisTurn = data.hasRolledThisTurn || false;
+        gameState.lastDice = null;
+        setText('gameStatusLabel', 'playing');
+        setText('turnLabel', data.currentPlayer ? data.currentPlayer.name : '-');
+        setText('diceLabel', '-');
+        // Show game panel for everyone in this room
+        if (currentRoomId) {
+          el('gamePanel').style.display = 'block';
+        }
+        renderBoard();
+        syncActionButtons();
+        log('Game đã bắt đầu 🎮', 'success');
+      });
+      
+      socket.on('gameState', (data) => {
+        gameState = { ...gameState, ...data };
+        updateGamePanel();
+      });
+      
+      socket.on('diceRolled', (data) => {
+        gameState.lastDice = data.diceValue;
+        gameState.hasRolledThisTurn = true;
+        setText('diceLabel', `🎲 ${data.diceValue}`);
+        syncActionButtons();
+        log(`${data.playerName} đã tung được ${data.diceValue} nút`, 'success');
+      });
+      
+      socket.on('playerMoved', (data) => {
+        if (data.players) gameState.players = data.players;
+        log(`${data.playerName} đã di chuyển tới ô số ${data.newPosition}`, 'success');
+        renderBoard();
+      });
+      
+      socket.on('turnEnded', (data) => {
+        gameState.currentTurnIndex = data.currentTurnIndex;
+        gameState.hasRolledThisTurn = false;
+        gameState.lastDice = null;
+        gameState.players = data.players || gameState.players;
+        setText('turnLabel', data.currentPlayer ? data.currentPlayer.name : '-');
+        setText('diceLabel', '-');
+        syncActionButtons();
+        renderBoard();
+        log(`Lượt đi tiếp theo: ${data.currentPlayer ? data.currentPlayer.name : '-'}`, 'info');
+      });
+      
+      socket.on('error', (data) => {
+        log(data.message || 'Lỗi socket không xác định', 'error');
+      });
+    }
+
+    async function loadRooms() {
+      const res = await fetch(`${baseUrl}/api/rooms`);
+      rooms = await res.json();
+      renderRooms();
+    }
+
+    async function createRoom() {
+      const name = (el('createRoomName').value || '').trim();
+      const host = (el('createHostName').value || el('playerName').value || '').trim();
+      const maxPlayers = parseInt(el('createMaxPlayers').value, 10) || 4;
+
+      if (!name) {
+        log('Vui lòng nhập tên phòng', 'error');
+        el('createRoomName').focus();
+        return;
+      }
+      if (!host) {
+        log('Vui lòng nhập tên chủ phòng', 'error');
+        el('createHostName').focus();
+        return;
+      }
+
+      try {
+        const res = await fetch(`${baseUrl}/api/rooms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, host, maxPlayers })
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || 'Tạo phòng thất bại');
+        }
+        const newRoom = await res.json();
+        log(`Đã tạo phòng "${newRoom.name}" thành công! 🎉`, 'success');
+
+        // Clear form
+        el('createRoomName').value = '';
+        el('createHostName').value = '';
+        el('createMaxPlayers').value = '4';
+
+        // Collapse the form
+        el('createToggle').classList.remove('open');
+        el('createForm').classList.remove('open');
+
+        // Auto-set player name to host name for convenience
+        if (!el('playerName').value.trim()) {
+          el('playerName').value = host;
+        }
+
+        // Reload rooms
+        await loadRooms();
+      } catch (err) {
+        log(`Lỗi tạo phòng: ${err.message}`, 'error');
+      }
+    }
+
+    function renderRooms() {
+      const list = el('roomsList');
+      list.innerHTML = '';
+
+      if (!rooms.length) {
+        list.innerHTML = '<div class="pill" style="width: 100%; justify-content: center;">Chưa có phòng nào được tạo. Hãy tạo phòng bên Client chính.</div>';
+        return;
+      }
+
+      rooms.forEach((room) => {
+        const roomEl = document.createElement('div');
+        roomEl.className = 'room';
+        roomEl.innerHTML = `
+          <div>
+            <h3>${room.name}</h3>
+            <div class="room-meta">
+              <span class="tag">Chủ phòng: ${room.host}</span>
+              <span class="tag">Người chơi: ${(room.players || []).length}/${room.maxPlayers}</span>
+              <span class="tag">Người xem: ${(room.spectators || []).length}</span>
+              <span class="tag status-${room.status}">Trạng thái: ${room.status}</span>
+              <span class="tag">ID: ${room._id}</span>
+            </div>
+          </div>
+          <div class="room-actions">
+            <button class="btn-primary" data-join="${room._id}">🎮 Join</button>
+            <button class="btn-dark" data-spectate="${room._id}">👁️ Spectate</button>
+            <button class="btn-success" data-start="${room._id}">🚀 Start</button>
+          </div>
+        `;
+        list.appendChild(roomEl);
+      });
+
+      list.querySelectorAll('[data-join]').forEach((btn) => {
+        btn.addEventListener('click', () => joinRoom(btn.getAttribute('data-join')));
+      });
+      list.querySelectorAll('[data-spectate]').forEach((btn) => {
+        btn.addEventListener('click', () => joinRoomAsSpectator(btn.getAttribute('data-spectate')));
+      });
+      list.querySelectorAll('[data-start]').forEach((btn) => {
+        btn.addEventListener('click', () => startRoom(btn.getAttribute('data-start')));
+      });
+    }
+
+    async function fetchRoom(roomId) {
+      const res = await fetch(`${baseUrl}/api/rooms/${roomId}`);
+      if (!res.ok) throw new Error('Không tìm thấy phòng chơi');
+      currentRoom = await res.json();
+      updateRoomState(currentRoom);
+      return currentRoom;
+    }
+
+    function updateRoomState(room) {
+      if (!room) return;
+      currentRoom = room;
+      currentRoomId = room._id || currentRoomId;
+      gameState.players = room.players || gameState.players;
+      gameState.spectators = room.spectators || gameState.spectators;
+      gameState.currentTurnIndex = room.currentTurnIndex ?? gameState.currentTurnIndex;
+      gameState.hasRolledThisTurn = room.hasRolledThisTurn ?? gameState.hasRolledThisTurn;
+      gameState.status = room.status || gameState.status;
+      gameState.boardSize = room.boardSize || gameState.boardSize;
+      gameState.host = room.host || gameState.host;
+      setText('currentRoomLabel', room.name ? `${room.name} (${room._id})` : room._id || '-');
+      setText('gameStatusLabel', room.status || '-');
+      setText('turnLabel', room.players && room.players[room.currentTurnIndex] ? room.players[room.currentTurnIndex].name : '-');
+      setText('spectatorsCountLabel', String((gameState.spectators || []).length));
+      renderBoard();
+      renderSpectators();
+      syncActionButtons();
+    }
+
+    function renderSpectators() {
+      const panel = el('spectatorsPanel');
+      const list = el('spectatorsList');
+      const listContent = gameState.spectators || [];
+
+      if (!listContent.length) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = 'block';
+      list.innerHTML = '';
+      listContent.forEach((spec) => {
+        const span = document.createElement('span');
+        span.className = 'tag';
+        span.style.background = 'rgba(56, 189, 248, 0.06)';
+        span.style.borderColor = 'rgba(56, 189, 248, 0.2)';
+        span.innerHTML = `👁️ ${spec.name}`;
+        list.appendChild(span);
+      });
+    }
+
+    function renderBoard() {
+      const board = el('board');
+      board.innerHTML = '';
+      const size = Number(gameState.boardSize || 20);
+      const activeNames = new Map();
+      (gameState.players || []).forEach((player) => {
+        if (!activeNames.has(player.position)) activeNames.set(player.position, []);
+        activeNames.get(player.position).push(player.name);
+      });
+
+      for (let i = 0; i < size; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'tile' + (i === (gameState.players[gameState.currentTurnIndex]?.position || -1) ? ' active' : '');
+        const names = activeNames.get(i) || [];
+        tile.innerHTML = `<strong>Ô ${i}</strong><span>${names.length ? names.join(', ') : 'Trống'}</span>`;
+        board.appendChild(tile);
+      }
+    }
+
+    async function joinRoom(roomId) {
+      let playerName = (el('playerName').value || '').trim();
+      if (!playerName) {
+        playerName = `Player-${Math.floor(1000 + Math.random() * 9000)}`;
+        el('playerName').value = playerName;
+      }
+      if (!socket || !socket.connected) connectSocket();
+      currentPlayerName = playerName;
+      currentPlayerId = `player-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      isSpectator = false;
+
+      const res = await fetch(`${baseUrl}/api/rooms/${roomId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: playerName, playerId: currentPlayerId, socketId: socket.id })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Vào phòng thất bại');
+      }
+      const room = await res.json();
+      socket.emit('joinRoom', { roomId, name: playerName, playerId: currentPlayerId });
+      currentRoom = room;
+      currentRoomId = roomId;
+      setText('currentPlayerLabel', playerName);
+      setText('roleLabel', 'Người chơi 🎮');
+      setText('joinHint', `Đã tham gia phòng ${room.name || roomId}`);
+      el('gamePanel').style.display = 'block';
+      el('spectatorMsg').style.display = 'none';
+      el('leaveBtn').disabled = false;
+      gameState.players = room.players || [];
+      gameState.spectators = room.spectators || [];
+      gameState.host = room.host;
+      gameState.status = room.status;
+      setText('gameStatusLabel', room.status || '-');
+      setText('turnLabel', room.players && room.players[room.currentTurnIndex] ? room.players[room.currentTurnIndex].name : '-');
+      setText('diceLabel', '-');
+      setText('spectatorsCountLabel', String(gameState.spectators.length));
+      syncActionButtons();
+      renderBoard();
+      renderSpectators();
+      log(`Đã vào phòng ${room.name || roomId}`, 'success');
+    }
+
+    async function joinRoomAsSpectator(roomId) {
+      let playerName = (el('playerName').value || '').trim();
+      if (!playerName) {
+        playerName = `Viewer-${Math.floor(1000 + Math.random() * 9000)}`;
+        el('playerName').value = playerName;
+      }
+      if (!socket || !socket.connected) connectSocket();
+      currentPlayerName = playerName;
+      currentPlayerId = `player-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      isSpectator = true;
+
+      const res = await fetch(`${baseUrl}/api/rooms/${roomId}/spectate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: playerName, socketId: socket.id })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Vào chế độ xem thất bại');
+      }
+      const room = await res.json();
+      socket.emit('joinAsSpectator', { roomId, name: playerName, spectatorId: currentPlayerId });
+      currentRoom = room;
+      currentRoomId = roomId;
+      setText('currentPlayerLabel', playerName);
+      setText('roleLabel', 'Người xem 👁️');
+      setText('joinHint', `Đang xem phòng ${room.name || roomId}`);
+      el('gamePanel').style.display = 'block';
+      el('spectatorMsg').style.display = 'block';
+      el('leaveBtn').disabled = false;
+      gameState.players = room.players || [];
+      gameState.spectators = room.spectators || [];
+      gameState.host = room.host;
+      gameState.status = room.status;
+      setText('gameStatusLabel', room.status || '-');
+      setText('turnLabel', room.players && room.players[room.currentTurnIndex] ? room.players[room.currentTurnIndex].name : '-');
+      setText('diceLabel', '-');
+      setText('spectatorsCountLabel', String(gameState.spectators.length));
+      syncActionButtons();
+      renderBoard();
+      renderSpectators();
+      log(`Đã tham gia phòng ${room.name || roomId} với tư cách người xem 👁️`, 'success');
+    }
+
+    async function startRoom(roomId) {
+  try {
+    if (!currentPlayerName) {
+      log('Bạn cần nhập tên trước', 'error');
+      return;
+    }
+
+    // tìm room hiện tại
+   const room = await fetch(`${baseUrl}/api/rooms/${roomId}`)
+  .then(res => res.json());
+
+    if (!room) {
+      log('Không tìm thấy phòng', 'error');
+      return;
+    }
+
+    // check host (không cần là player)
+    const isHost =
+      room.host?.trim().toLowerCase() ===
+      currentPlayerName?.trim().toLowerCase();
+
+    console.log('ROOM HOST:', room.host);
+    console.log('CURRENT PLAYER:', currentPlayerName);
+    console.log('IS HOST:', isHost);
+
+    if (!isHost) {
+      log('Chỉ chủ phòng (host) mới được kích hoạt trận đấu', 'error');
+      return;
+    }
+
+    // gọi API start
+    const res = await fetch(`${baseUrl}/api/rooms/${roomId}/start`, {
+      method: 'POST'
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+
+      throw new Error(
+        errData?.error ||
+        'Không thể bắt đầu game'
+      );
+    }
+
+    const startedRoom = await res.json();
+
+    // broadcast realtime
+    if (socket && socket.connected) {
+      socket.emit('startGame', {
+        roomId,
+        name: currentPlayerName
+      });
+    }
+
+    // update local state
+    currentRoom = startedRoom;
+
+    gameState.players = startedRoom.players || [];
+    gameState.spectators = startedRoom.spectators || [];
+    gameState.status = startedRoom.status || 'playing';
+    gameState.currentTurnIndex =
+      startedRoom.currentTurnIndex || 0;
+
+    setText(
+      'gameStatusLabel',
+      startedRoom.status || 'playing'
+    );
+
+    setText(
+      'turnLabel',
+      startedRoom.players?.[0]?.name || '-'
+    );
+
+    setText('diceLabel', '-');
+
+    // show gameplay
+    el('gamePanel').style.display = 'block';
+
+    renderBoard();
+    renderSpectators();
+    syncActionButtons();
+
+    log(
+      `Game "${startedRoom.name}" đã bắt đầu 🎮`,
+      'success'
+    );
+
+  } catch (err) {
+    console.error(err);
+
+    log(
+      `Lỗi bắt đầu game: ${err.message}`,
+      'error'
+    );
+  }
+}
+    function syncActionButtons() {
+      const inRoom = !!currentRoomId;
+      const isHost = currentRoom && currentRoom.host === currentPlayerName;
+      const started = gameState.status === 'playing';
+      const isMyTurn = started && !isSpectator && gameState.players[gameState.currentTurnIndex]?.name === currentPlayerName;
+
+      el('startBtn').disabled = !inRoom || !isHost || started || isSpectator;
+      el('rollBtn').disabled = !inRoom || !started || !isMyTurn || gameState.hasRolledThisTurn || isSpectator;
+      el('moveBtn').disabled = !inRoom || !started || !isMyTurn || !gameState.hasRolledThisTurn || isSpectator;
+      el('endTurnBtn').disabled = !inRoom || !started || !isMyTurn || isSpectator;
+    }
+
+    function updateGamePanel() {
+      el('gamePanel').style.display = currentRoomId ? 'block' : 'none';
+      el('spectatorMsg').style.display = (currentRoomId && isSpectator) ? 'block' : 'none';
+      el('leaveBtn').disabled = !currentRoomId;
+      syncActionButtons();
+      renderBoard();
+    }
+
+    async function leaveRoom() {
+      if (!currentRoomId) return;
+      if (isSpectator) {
+        await fetch(`${baseUrl}/api/rooms/${currentRoomId}/spectators/leave`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: currentPlayerName })
+        });
+        if (socket) socket.emit('leaveAsSpectator', { roomId: currentRoomId, name: currentPlayerName });
+      } else {
+        await fetch(`${baseUrl}/api/rooms/${currentRoomId}/leave`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: currentPlayerName })
+        });
+        if (socket) socket.emit('leaveRoom', { roomId: currentRoomId, name: currentPlayerName });
+      }
+      
+      currentRoomId = null;
+      currentRoom = null;
+      currentPlayerName = '';
+      currentPlayerId = '';
+      isSpectator = false;
+      gameState = {
+        players: [],
+        spectators: [],
+        currentTurnIndex: 0,
+        hasRolledThisTurn: false,
+        status: 'waiting',
+        boardSize: 20,
+        currentPlayer: null,
+        lastDice: null,
+        host: null
+      };
+      
+      el('gamePanel').style.display = 'none';
+      el('spectatorMsg').style.display = 'none';
+      el('leaveBtn').disabled = true;
+      setText('currentRoomLabel', '-');
+      setText('currentPlayerLabel', '-');
+      setText('roleLabel', '-');
+      setText('gameStatusLabel', '-');
+      setText('turnLabel', '-');
+      setText('diceLabel', '-');
+      setText('spectatorsCountLabel', '0');
+      el('spectatorsPanel').style.display = 'none';
+      setText('joinHint', 'Chọn Join hoặc Spectate ở một phòng để tham gia');
+      log('Đã rời khỏi phòng', 'info');
+      syncActionButtons();
+    }
+
+    async function main() {
+      await resolveServerUrl();
+      connectSocket();
+      await loadRooms();
+      log('Bản đồ danh sách phòng đã tải thành công', 'info');
+      setConnectionState(!!baseUrl);
+      updateGamePanel();
+    }
+
+    el('refreshBtn').addEventListener('click', loadRooms);
+    el('createToggle').addEventListener('click', () => {
+      el('createToggle').classList.toggle('open');
+      el('createForm').classList.toggle('open');
+    });
+    el('createRoomBtn').addEventListener('click', createRoom);
+    el('connectBtn').addEventListener('click', async () => {
+      await resolveServerUrl();
+      connectSocket();
+      await loadRooms();
+      log('Đã kết nối lại và cập nhật danh sách phòng', 'info');
+    });
+    el('leaveBtn').addEventListener('click', leaveRoom);
+    el('startBtn').addEventListener('click', async () => {
+      if (!currentRoomId) return;
+      await startRoom(currentRoomId);
+    });
+    el('rollBtn').addEventListener('click', () => {
+      if (!socket || !currentRoomId) return;
+      socket.emit('rollDice', { roomId: currentRoomId });
+    });
+    el('moveBtn').addEventListener('click', () => {
+      if (!socket || !currentRoomId) return;
+      const steps = gameState.lastDice || 1;
+      socket.emit('movePlayer', { roomId: currentRoomId, steps });
+    });
+    el('endTurnBtn').addEventListener('click', () => {
+      if (!socket || !currentRoomId) return;
+      socket.emit('endTurn', { roomId: currentRoomId });
+    });
+
+    main().catch((err) => {
+      log(err.message, 'error');
+    });
+
+    function getDiceFace(value) {
+  const faces = {
+    1: '⚀',
+    2: '⚁',
+    3: '⚂',
+    4: '⚃',
+    5: '⚄',
+    6: '⚅'
+  };
+
+  return faces[value] || '🎲';
+}
+  </script>
+</body>
+</html>

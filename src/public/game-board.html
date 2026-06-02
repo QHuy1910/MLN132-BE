@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Board Game - START to FINISH</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .game-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .game-header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .board-wrapper {
+            position: relative;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 800"><defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="%23e0e0e0" stroke-width="0.5"/></pattern></defs><rect width="1400" height="800" fill="%235ba3d0"/><rect width="1400" height="800" fill="url(%23grid)"/></svg>');
+            background-size: cover;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            min-height: 600px;
+        }
+
+        .board-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: linear-gradient(135deg, #87CEEB 0%, #E0F6FF 100%);
+            border: 2px solid #333;
+        }
+
+        .squares-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .square {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 5px;
+        }
+
+        .square:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        /* Start square */
+        .square.start {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            color: white;
+            border: 3px solid #FF0000;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Finish square */
+        .square.finish {
+            background: linear-gradient(135deg, #FFD93D, #FFED4E);
+            color: #333;
+            border: 3px solid #FFA500;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Yellow squares */
+        .square.yellow {
+            background: linear-gradient(135deg, #FFD93D, #FFED4E);
+            color: #333;
+        }
+
+        /* Red squares */
+        .square.red {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            color: white;
+        }
+
+        /* Player character */
+        .player {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            z-index: 100;
+            transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border: 3px solid white;
+        }
+
+        .player.player1 {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .player.player2 {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+        }
+
+        .player.player3 {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+        }
+
+        .player.player4 {
+            background: linear-gradient(135deg, #43e97b, #38f9d7);
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .dice-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .dice {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 3px solid #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .dice:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        .dice.rolling {
+            animation: rollAnimation 0.5s ease-in-out;
+        }
+
+        @keyframes rollAnimation {
+            0%, 100% { transform: rotateX(0) rotateY(0); }
+            25% { transform: rotateX(20deg) rotateY(20deg); }
+            50% { transform: rotateX(-20deg) rotateY(-20deg); }
+            75% { transform: rotateX(20deg) rotateY(-20deg); }
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+            color: white;
+        }
+
+        .btn-reset:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .info-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-item h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+
+        .info-item p {
+            color: #333;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .status-message {
+            text-align: center;
+            font-size: 1.2em;
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 8px;
+            min-height: 30px;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status-message.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .leaderboard {
+            margin-top: 20px;
+        }
+
+        .leaderboard h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .leaderboard-item.finished {
+            border-left-color: #FFD93D;
+            background: #fffbf0;
+        }
+
+        .player-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .player-position {
+            font-size: 1.1em;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .board-container {
+                height: 400px;
+            }
+
+            .square {
+                width: 40px;
+                height: 40px;
+                font-size: 10px;
+            }
+
+            .game-header h1 {
+                font-size: 1.8em;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+
+        .winner-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .winner-modal.show {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .winner-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .winner-content h2 {
+            color: #FFD93D;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .winner-content p {
+            color: #333;
+            font-size: 1.3em;
+            margin-bottom: 30px;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            animation: confettiFall 3s ease-in-out forwards;
+        }
+
+        @keyframes confettiFall {
+            to {
+                transform: translateY(100vh) translateX(100px) rotateZ(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🎮 Board Game</h1>
+            <p>Move from START to FINISH by rolling the dice</p>
+        </div>
+
+        <div class="controls">
+            <div class="dice-container">
+                <label>Roll Dice:</label>
+                <div class="dice" id="diceDisplay">🎲</div>
+            </div>
+            <button class="btn-primary" id="rollBtn">Roll Dice</button>
+            <button class="btn-reset" id="resetBtn">Reset Game</button>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+
+        <div class="board-wrapper">
+            <div class="board-container">
+                <div class="squares-container" id="boardContainer"></div>
+                <div class="player player1" id="playerToken">🎯</div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-item">
+                <h3>Current Position</h3>
+                <p id="currentPosition">START (Square 1)</p>
+            </div>
+            <div class="info-item">
+                <h3>Total Squares</h3>
+                <p id="totalSquares">113</p>
+            </div>
+            <div class="info-item">
+                <h3>Progress</h3>
+                <p id="progressPercent">0%</p>
+            </div>
+            <div class="info-item">
+                <h3>Last Dice Roll</h3>
+                <p id="lastRoll">-</p>
+            </div>
+        </div>
+
+        <div class="leaderboard">
+            <h3>Game Status</h3>
+            <div id="leaderboard"></div>
+        </div>
+    </div>
+
+    <div class="winner-modal" id="winnerModal">
+        <div class="winner-content">
+            <h2>🎉 You Win! 🎉</h2>
+            <p id="winnerText">You have reached the FINISH!</p>
+            <button class="btn-primary" onclick="location.reload()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Game constants
+        const TOTAL_SQUARES = 113;
+        const START_SQUARE = 1;
+        const FINISH_SQUARE = 113;
+
+        // Board layout configuration
+        const BOARD_WIDTH = 1400;
+        const BOARD_HEIGHT = 600;
+        const SQUARE_SIZE = 50;
+
+        // Game state
+        let currentPosition = START_SQUARE;
+        let lastRoll = 0;
+        let gameWon = false;
+
+        // Square positions (numbered path on board)
+        const squarePositions = generateSquarePositions();
+
+        // Initialize board
+        function initializeBoard() {
+            const boardContainer = document.getElementById('boardContainer');
+            boardContainer.innerHTML = '';
+
+            for (let i = 1; i <= TOTAL_SQUARES; i++) {
+                const square = document.createElement('div');
+                square.className = 'square';
+                if (i === 1) square.classList.add('start');
+                if (i === TOTAL_SQUARES) square.classList.add('finish');
+                
+                // Alternate colors for visual clarity
+                if (i % 2 === 0) {
+                    square.classList.add('yellow');
+                } else {
+                    square.classList.add('red');
+                }
+
+                const pos = squarePositions[i];
+                square.style.left = pos.x + 'px';
+                square.style.top = pos.y + 'px';
+                square.textContent = i === 1 ? 'START' : (i === TOTAL_SQUARES ? 'FINISH' : i);
+                square.id = 'square-' + i;
+
+                boardContainer.appendChild(square);
+            }
+
+            updatePlayerPosition();
+        }
+
+        // Generate positions for squares in a spiral/path pattern
+        function generateSquarePositions() {
+            const positions = {};
+            const margin = 40;
+            const innerWidth = BOARD_WIDTH - (2 * margin);
+            const innerHeight = BOARD_HEIGHT - (2 * margin);
+            
+            let posIndex = 1;
+
+            // Create a snaking path from outside to center
+            // Row 1: Left side going down
+            let x = margin;
+            let y = margin;
+            for (let i = 0; i < 8; i++) {
+                positions[posIndex++] = { x, y };
+                y += SQUARE_SIZE + 5;
+            }
+
+            // Row 2: Bottom going right
+            x = margin + (SQUARE_SIZE + 5);
+            y = margin + (7 * (SQUARE_SIZE + 5));
+            for (let i = 0; i < 20; i++) {
+                positions[posIndex++] = { x, y };
+                x += SQUARE_SIZE + 5;
+            }
+
+            // Row 3: Right side going up
+            x = margin + (20 * (SQUARE_SIZE + 5));
+            y = margin + (7 * (SQUARE_SIZE + 5));
+            for (let i = 0; i < 8; i++) {
+                positions[posIndex++] = { x, y };
+                y -= SQUARE_SIZE + 5;
+            }
+
+            // Row 4: Top going left
+            x = margin + (20 * (SQUARE_SIZE + 5));
+            y = margin;
+            for (let i = 0; i < 20; i++) {
+                positions[posIndex++] = { x, y };
+                x -= SQUARE_SIZE + 5;
+            }
+
+            // Center spiral
+            x = margin + (10 * (SQUARE_SIZE + 5));
+            y = margin + (3 * (SQUARE_SIZE + 5));
+            const remaining = TOTAL_SQUARES - posIndex + 1;
+            for (let i = 0; i < remaining; i++) {
+                if (posIndex <= TOTAL_SQUARES) {
+                    positions[posIndex++] = { x, y };
+                    x += SQUARE_SIZE + 5;
+                    if (x > margin + (18 * (SQUARE_SIZE + 5))) {
+                        x = margin + (10 * (SQUARE_SIZE + 5));
+                        y += SQUARE_SIZE + 5;
+                    }
+                }
+            }
+
+            return positions;
+        }
+
+        // Update player position visually
+        function updatePlayerPosition() {
+            const playerToken = document.getElementById('playerToken');
+            const pos = squarePositions[currentPosition];
+            
+            playerToken.style.left = (pos.x + SQUARE_SIZE / 2 - 20) + 'px';
+            playerToken.style.top = (pos.y + SQUARE_SIZE / 2 - 20) + 'px';
+
+            // Highlight current square
+            document.querySelectorAll('.square').forEach(sq => sq.style.opacity = '0.6');
+            const currentSquare = document.getElementById('square-' + currentPosition);
+            if (currentSquare) currentSquare.style.opacity = '1';
+
+            // Update info panel
+            updateInfoPanel();
+        }
+
+        // Update information panel
+        function updateInfoPanel() {
+            document.getElementById('currentPosition').textContent = `Square ${currentPosition} ${currentPosition === TOTAL_SQUARES ? '(FINISH!)' : ''}`;
+            
+            const progress = Math.round((currentPosition / TOTAL_SQUARES) * 100);
+            document.getElementById('progressPercent').textContent = progress + '%';
+            
+            document.getElementById('lastRoll').textContent = lastRoll === 0 ? '-' : lastRoll;
+        }
+
+        // Roll dice
+        function rollDice() {
+            if (gameWon) {
+                showMessage('Game finished! Click Reset to play again.', 'warning');
+                return;
+            }
+
+            const roll = Math.floor(Math.random() * 6) + 1;
+            lastRoll = roll;
+
+            // Animate dice
+            const diceDisplay = document.getElementById('diceDisplay');
+            diceDisplay.classList.add('rolling');
+            setTimeout(() => {
+                diceDisplay.classList.remove('rolling');
+                diceDisplay.textContent = roll;
+                updateInfoPanel();
+            }, 500);
+
+            // Move player
+            const newPosition = currentPosition + roll;
+
+            if (newPosition > TOTAL_SQUARES) {
+                showMessage(`🚫 Rolled ${roll}, but would exceed square ${TOTAL_SQUARES}. Stay at square ${currentPosition}.`, 'warning');
+            } else if (newPosition === TOTAL_SQUARES) {
+                currentPosition = newPosition;
+                updatePlayerPosition();
+                setTimeout(() => {
+                    showMessage('🎉 You reached the FINISH!', 'success');
+                    winGame();
+                }, 600);
+            } else {
+                currentPosition = newPosition;
+                updatePlayerPosition();
+                showMessage(`✅ Rolled ${roll}! Moved to square ${currentPosition}.`, 'info');
+            }
+        }
+
+        // Win game
+        function winGame() {
+            gameWon = true;
+            document.getElementById('rollBtn').disabled = true;
+            document.getElementById('winnerModal').classList.add('show');
+            createConfetti();
+        }
+
+        // Show message
+        function showMessage(msg, type = 'info') {
+            const messageEl = document.getElementById('statusMessage');
+            messageEl.textContent = msg;
+            messageEl.className = 'status-message ' + type;
+        }
+
+        // Reset game
+        function resetGame() {
+            currentPosition = START_SQUARE;
+            lastRoll = 0;
+            gameWon = false;
+            document.getElementById('rollBtn').disabled = false;
+            document.getElementById('diceDisplay').textContent = '🎲';
+            document.getElementById('winnerModal').classList.remove('show');
+            updatePlayerPosition();
+            showMessage('Game reset! Ready to play.', 'info');
+        }
+
+        // Create confetti effect
+        function createConfetti() {
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * window.innerWidth + 'px';
+                confetti.style.top = '-10px';
+                confetti.style.background = ['#667eea', '#764ba2', '#FFD93D', '#FF6B6B', '#43e97b'][Math.floor(Math.random() * 5)];
+                confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                document.body.appendChild(confetti);
+
+                setTimeout(() => confetti.remove(), 3000);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('rollBtn').addEventListener('click', rollDice);
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                rollDice();
+            }
+            if (e.key === 'r' || e.key === 'R') {
+                resetGame();
+            }
+        });
+
+        // Initialize game
+        initializeBoard();
+        showMessage('Welcome! Click "Roll Dice" or press SPACE to start playing.', 'info');
+    </script>
+</body>
+</html>

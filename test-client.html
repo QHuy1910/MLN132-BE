@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly Game - Test Client</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #5568d3;
+        }
+
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .button-group .button {
+            flex: 1;
+        }
+
+        .status-box {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+
+        .status-box h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .status-box p {
+            color: #666;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .player-item {
+            background: #f9f9f9;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .player-item.current {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .player-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .player-stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .dice-display {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .die {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .board {
+            border: 3px solid #333;
+            background: #2a5f2a;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            min-height: 200px;
+        }
+
+        .board-title {
+            color: white;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .board-tile {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            min-height: 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid #999;
+        }
+
+        .board-tile.occupied {
+            background: #ffeb3b;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .event-log {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .event-log-item {
+            font-size: 12px;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            color: #666;
+        }
+
+        .event-log-item:last-child {
+            border-bottom: none;
+        }
+
+        .event-log-item.success {
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .event-log-item.error {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .event-log-item.info {
+            color: #2196f3;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎲 Monopoly Board Game</h1>
+            <p>Real-time Multiplayer Test Client</p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Left Panel: Room & Game Control -->
+            <div class="card">
+                <h2>🎮 Game Control</h2>
+
+                <div id="setupPanel">
+                    <div class="form-group">
+                        <label>Player Name:</label>
+                        <input type="text" id="playerName" placeholder="Enter your name" value="Player1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Server URL:</label>
+                        <input type="text" id="serverUrl" value="http://localhost:5000" placeholder="Server URL">
+                    </div>
+
+                    <button class="button" onclick="connectToServer()">🔌 Connect</button>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Room ID:</label>
+                        <input type="text" id="roomId" placeholder="Enter or create room ID">
+                    </div>
+
+                    <button class="button" onclick="createRoom()" style="margin-bottom: 10px;">➕ Create Room</button>
+                    <button class="button" onclick="joinRoom()">✅ Join Room</button>
+                </div>
+
+                <div id="gamePanel" style="display: none;">
+                    <div class="status-box">
+                        <h3>📊 Connection Status</h3>
+                        <p>Socket ID: <span id="socketId">Not connected</span></p>
+                        <p>Room ID: <span id="displayRoomId">-</span></p>
+                        <p>Game Status: <span id="gameStatus">Waiting</span></p>
+                    </div>
+
+                    <button class="button" onclick="startGame()" style="margin-bottom: 10px;">🚀 Start Game</button>
+                    <button class="button" onclick="leaveRoom()">🚪 Leave Room</button>
+
+                    <div style="margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">🎲 Turn Actions</h3>
+                        
+                        <div id="turnActions" style="display: none;">
+                            <div class="status-box">
+                                <h3>Your Turn!</h3>
+                                <p id="turnMessage">Waiting for action...</p>
+                            </div>
+
+                            <button class="button" id="rollDiceBtn" onclick="rollDice()" style="margin-bottom: 10px;">🎲 Roll Dice</button>
+
+                            <div id="moveButtons" style="display: none; margin-bottom: 10px;">
+                                <button class="button" onclick="movePlayer()" style="margin-bottom: 10px;">➡️ Move Player</button>
+                            </div>
+
+                            <button class="button" id="endTurnBtn" onclick="endTurn()" style="display: none;">⏭️ End Turn</button>
+                        </div>
+
+                        <div id="waitingForTurn" style="display: none;">
+                            <div class="status-box">
+                                <h3>⏳ Waiting for Your Turn</h3>
+                                <p id="nextPlayerName">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Players & Board -->
+            <div class="card">
+                <h2>👥 Players & Board</h2>
+
+                <div class="status-box">
+                    <h3>Current Players</h3>
+                    <div id="playersList">
+                        <p style="color: #999;">No players yet...</p>
+                    </div>
+                </div>
+
+                <div class="status-box">
+                    <h3>Last Dice Roll</h3>
+                    <div class="dice-display" id="diceDisplay" style="display: none;">
+                        <div class="die" id="die1">-</div>
+                        <div class="die" id="die2">-</div>
+                        <div class="die" id="dieTotal" style="background: #667eea; color: white;">-</div>
+                    </div>
+                    <p id="noDiceMessage" style="text-align: center; color: #999;">No roll yet</p>
+                </div>
+
+                <div class="board">
+                    <div class="board-title">📍 Board Positions</div>
+                    <div class="board-grid" id="boardGrid"></div>
+                </div>
+
+                <div>
+                    <h3 style="color: #667eea; margin: 15px 0 10px 0;">📝 Event Log</h3>
+                    <div class="event-log" id="eventLog">
+                        <div class="event-log-item info">Connected to test client</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentRoomId = null;
+        let currentPlayerName = null;
+        let gameState = {
+            players: [],
+            currentTurnIndex: 0,
+            hasRolledThisTurn: false,
+            boardSize: 20,
+            lastDice: null
+        };
+
+        // DOM Elements
+        const setupPanel = document.getElementById('setupPanel');
+        const gamePanel = document.getElementById('gamePanel');
+        const turnActions = document.getElementById('turnActions');
+        const waitingForTurn = document.getElementById('waitingForTurn');
+        const playersList = document.getElementById('playersList');
+        const eventLog = document.getElementById('eventLog');
+        const boardGrid = document.getElementById('boardGrid');
+
+        function log(message, type = 'info') {
+            const item = document.createElement('div');
+            item.className = `event-log-item ${type}`;
+            item.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            eventLog.insertBefore(item, eventLog.firstChild);
+            
+            if (eventLog.children.length > 50) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+
+        function connectToServer() {
+            const url = document.getElementById('serverUrl').value;
+            currentPlayerName = document.getElementById('playerName').value;
+
+            if (!currentPlayerName) {
+                alert('Please enter your name');
+                return;
+            }
+
+            log(`Connecting to ${url}...`, 'info');
+            // Socket is already initialized, just setup handlers
+            socket.emit('getGameState', { roomId: currentRoomId });
+        }
+
+        function createRoom() {
+            const roomId = 'room-' + Math.random().toString(36).substr(2, 9);
+            document.getElementById('roomId').value = roomId;
+            log(`Room ID generated: ${roomId}`, 'info');
+        }
+
+        async function joinRoom() {
+            const roomId = document.getElementById('roomId').value;
+            if (!roomId) {
+                alert('Please enter a room ID');
+                return;
+            }
+
+            currentRoomId = roomId;
+            document.getElementById('displayRoomId').textContent = roomId;
+
+            log(`Joining room: ${roomId}`, 'info');
+            socket.emit('joinRoom', { roomId, name: currentPlayerName });
+        }
+
+        function startGame() {
+            if (!currentRoomId) {
+                alert('Please join a room first');
+                return;
+            }
+            log('Starting game...', 'info');
+            socket.emit('startGame', { roomId: currentRoomId });
+        }
+
+        function rollDice() {
+            log(`${currentPlayerName} rolling dice...`, 'info');
+            socket.emit('rollDice', { roomId: currentRoomId });
+        }
+
+        function movePlayer() {
+            if (!gameState.lastDice) {
+                alert('Must roll dice first!');
+                return;
+            }
+            log(`${currentPlayerName} moving ${gameState.lastDice.total} steps...`, 'info');
+            socket.emit('movePlayer', { roomId: currentRoomId, steps: gameState.lastDice.total });
+        }
+
+        function endTurn() {
+            log(`${currentPlayerName} ending turn...`, 'info');
+            socket.emit('endTurn', { roomId: currentRoomId });
+        }
+
+        function leaveRoom() {
+            if (currentRoomId) {
+                socket.emit('leaveRoom', { roomId: currentRoomId, name: currentPlayerName });
+                currentRoomId = null;
+                setupPanel.style.display = 'block';
+                gamePanel.style.display = 'none';
+                log('Left room', 'info');
+            }
+        }
+
+        function updatePlayersList() {
+            playersList.innerHTML = '';
+            gameState.players.forEach((player, index) => {
+                const div = document.createElement('div');
+                div.className = 'player-item' + (index === gameState.currentTurnIndex ? ' current' : '');
+                div.innerHTML = `
+                    <div class="player-info">
+                        <div class="player-name">${player.name}</div>
+                        <div class="player-stats">
+                            Position: ${player.position} | Money: $${player.money}
+                            ${index === gameState.currentTurnIndex ? '<span class="badge">CURRENT TURN</span>' : ''}
+                        </div>
+                    </div>
+                `;
+                playersList.appendChild(div);
+            });
+        }
+
+        function updateBoard() {
+            boardGrid.innerHTML = '';
+            for (let i = 0; i < gameState.boardSize; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'board-tile';
+                
+                const playersOnTile = gameState.players.filter(p => p.position === i);
+                if (playersOnTile.length > 0) {
+                    tile.className += ' occupied';
+                    tile.innerHTML = `<strong>Tile ${i}</strong><br>${playersOnTile.map(p => p.name).join(', ')}`;
+                } else {
+                    tile.innerHTML = `Tile ${i}`;
+                }
+                
+                boardGrid.appendChild(tile);
+            }
+        }
+
+        function updateTurnUI() {
+            const isMyTurn = gameState.players[gameState.currentTurnIndex]?.name === currentPlayerName;
+
+            if (isMyTurn) {
+                turnActions.style.display = 'block';
+                waitingForTurn.style.display = 'none';
+                
+                if (gameState.hasRolledThisTurn) {
+                    document.getElementById('rollDiceBtn').disabled = true;
+                    document.getElementById('moveButtons').style.display = 'block';
+                    document.getElementById('endTurnBtn').style.display = 'block';
+                    document.getElementById('turnMessage').textContent = 'You rolled! Now move or end your turn.';
+                } else {
+                    document.getElementById('rollDiceBtn').disabled = false;
+                    document.getElementById('moveButtons').style.display = 'none';
+                    document.getElementById('endTurnBtn').style.display = 'none';
+                    document.getElementById('turnMessage').textContent = 'Roll the dice!';
+                }
+            } else {
+                turnActions.style.display = 'none';
+                waitingForTurn.style.display = 'block';
+                const nextPlayer = gameState.players[gameState.currentTurnIndex];
+                document.getElementById('nextPlayerName').textContent = `${nextPlayer?.name || '-'} is playing`;
+            }
+        }
+
+        // Socket Events
+        socket.on('connect', () => {
+            document.getElementById('socketId').textContent = socket.id;
+            log('Connected to server ✓', 'success');
+            setupPanel.style.display = 'block';
+            gamePanel.style.display = 'none';
+        });
+
+        socket.on('playerJoined', (data) => {
+            log(`${data.name} joined the room`, 'success');
+            if (data.players) {
+                gameState.players = data.players;
+                updatePlayersList();
+            }
+        });
+
+        socket.on('gameStarted', (data) => {
+            log('Game started! 🎮', 'success');
+            gameState = { ...gameState, ...data };
+            document.getElementById('gameStatus').textContent = 'Playing';
+            setupPanel.style.display = 'none';
+            gamePanel.style.display = 'block';
+            updatePlayersList();
+            updateBoard();
+            updateTurnUI();
+        });
+
+        socket.on('diceRolled', (data) => {
+            gameState.lastDice = { d1: data.dice[0], d2: data.dice[1], total: data.total };
+            gameState.hasRolledThisTurn = true;
+
+            document.getElementById('die1').textContent = data.dice[0];
+            document.getElementById('die2').textContent = data.dice[1];
+            document.getElementById('dieTotal').textContent = data.total;
+            document.getElementById('diceDisplay').style.display = 'flex';
+            document.getElementById('noDiceMessage').style.display = 'none';
+
+            log(`${data.playerName} rolled ${data.dice[0]} + ${data.dice[1]} = ${data.total}`, 'success');
+            updateTurnUI();
+        });
+
+        socket.on('playerMoved', (data) => {
+            const player = gameState.players.find(p => p.name === data.playerName);
+            if (player) {
+                player.position = data.newPosition;
+                log(`${data.playerName} moved to position ${data.newPosition}`, 'success');
+                updatePlayersList();
+                updateBoard();
+            }
+        });
+
+        socket.on('turnEnded', (data) => {
+            gameState.currentTurnIndex = data.currentTurnIndex;
+            gameState.hasRolledThisTurn = false;
+            gameState.players = data.players;
+
+            log(`Turn passed to ${data.currentPlayer.name}`, 'info');
+            updatePlayersList();
+            updateTurnUI();
+        });
+
+        socket.on('gameState', (data) => {
+            gameState = { ...gameState, ...data };
+            updatePlayersList();
+            updateBoard();
+            setupPanel.style.display = 'none';
+            gamePanel.style.display = 'block';
+            updateTurnUI();
+        });
+
+        socket.on('error', (data) => {
+            log(`Error: ${data.message}`, 'error');
+        });
+
+        socket.on('disconnect', () => {
+            log('Disconnected from server', 'error');
+            setupPanel.style.display = 'block';
+            gamePanel.style.display = 'none';
+        });
+
+        // Initialize
+        window.onload = () => {
+            log('Test client loaded', 'info');
+            createRoom();
+        };
+    </script>
+</body>
+</html>

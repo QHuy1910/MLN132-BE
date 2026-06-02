@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎲 Monopoly Game - Bắt Đầu</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 30px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .hero p {
+            font-size: 20px;
+            opacity: 0.95;
+            margin-bottom: 5px;
+        }
+
+        .hero .subtitle {
+            font-size: 16px;
+            opacity: 0.85;
+        }
+
+        .content {
+            padding: 50px 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 18px;
+            padding: 18px 40px;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .step-box {
+            background: linear-gradient(135deg, #f5f7ff 0%, #f0f4ff 100%);
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .step-box strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .step-box p {
+            margin: 0;
+            color: #555;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .feature:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .feature strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .feature p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .footer {
+            background: #f9f9f9;
+            border-top: 1px solid #e0e0e0;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .emoji {
+            font-size: 24px;
+            margin-right: 5px;
+        }
+
+        .code {
+            background: #f5f5f5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #d73a49;
+        }
+
+        .check { color: #28a745; }
+
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 40px; }
+            .button-group { flex-direction: column; }
+            button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>🎲 Monopoly Game</h1>
+            <p>Board Game - Thể Tích Lớn</p>
+            <p class="subtitle">Một trò chơi kinh điển được kỹ thuật số hóa</p>
+        </div>
+
+        <div class="content">
+            <!-- Welcome Section -->
+            <div class="section">
+                <h2><span class="emoji">👋</span>Chào Mừng!</h2>
+                <p>Bạn đã chuẩn bị sẵn sàng để chơi Monopoly với bạn bè? Đây là một ứng dụng trò chơi board game hoàn chỉnh với:</p>
+                
+                <div class="feature-list">
+                    <div class="feature">
+                        <strong>🏠 Phòng chơi</strong>
+                        <p>Tạo hoặc tham gia phòng</p>
+                    </div>
+                    <div class="feature">
+                        <strong>👥 Người chơi</strong>
+                        <p>Chơi với 2-4 người</p>
+                    </div>
+                    <div class="feature">
+                        <strong>🎲 Xúc xắc</strong>
+                        <p>Lắc xúc xắc & di chuyển</p>
+                    </div>
+                    <div class="feature">
+                        <strong>⚡ Real-time</strong>
+                        <p>Đồng bộ tức thời</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Start Section -->
+            <div class="section">
+                <h2><span class="emoji">⚡</span>Bắt Đầu Nhanh (30 giây)</h2>
+                
+                <div class="step-box">
+                    <strong>Bước 1: Khởi động Backend</strong>
+                    <p>Mở Terminal tại thư mục gốc và chạy:</p>
+                    <p style="font-family: monospace; background: #f0f0f0; padding: 10px; border-radius: 4px; margin-top: 10px;">
+                        npm start
+                    </p>
+                    <p style="margin-top: 10px; font-size: 14px;">Backend sẽ chạy trên: <span class="code">http://localhost:3000</span></p>
+                </div>
+
+                <div class="step-box">
+                    <strong>Bước 2: Mở Frontend</strong>
+                    <p>Nhấp đôi vào tệp <strong>frontend-complete.html</strong></p>
+                    <p style="font-size: 14px; margin-top: 10px;">Hoặc: Chuột phải → Mở với → Trình duyệt</p>
+                </div>
+
+                <div class="step-box">
+                    <strong>Bước 3: Chơi!</strong>
+                    <p>✓ Nhập tên người chơi<br>
+                    ✓ Chọn biểu tượng nhân vật<br>
+                    ✓ Chọn vai trò (Người chơi hoặc Khán giả)<br>
+                    ✓ Tham gia hoặc tạo phòng<br>
+                    ✓ Bắt đầu trò chơi!</p>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-start" onclick="openGame()">🎮 Mở Game Ngay</button>
+                    <button class="btn-secondary" onclick="showHelp()">📖 Trợ giúp</button>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="section">
+                <h2><span class="emoji">✨</span>Các Tính Năng</h2>
+                
+                <h3 style="color: #667eea; margin: 20px 0 15px 0;">📋 Trang 1: Danh sách Phòng</h3>
+                <p><span class="check">✓</span> Hiển thị các phòng chơi hiện có</p>
+                <p><span class="check">✓</span> Tạo phòng mới với tên tùy chỉnh</p>
+                <p><span class="check">✓</span> Nhập tên người chơi</p>
+                <p><span class="check">✓</span> Chọn biểu tượng nhân vật từ 8 lựa chọn</p>
+                <p><span class="check">✓</span> Chọn vai trò: Người chơi hoặc Khán giả</p>
+
+                <h3 style="color: #667eea; margin: 20px 0 15px 0;">🎮 Trang 2: Sảnh Phòng</h3>
+                <p><span class="check">✓</span> Xem danh sách tất cả người chơi</p>
+                <p><span class="check">✓</span> Xem danh sách khán giả</p>
+                <p><span class="check">✓</span> Xem trạng thái kết nối</p>
+                <p><span class="check">✓</span> Chủ phòng có thể bắt đầu game (cần 2+ người)</p>
+
+                <h3 style="color: #667eea; margin: 20px 0 15px 0;">🎲 Trang 3: Bàn Chơi</h3>
+                <p><span class="check">✓</span> Bàn cờ 20 ô (không có hiệu ứng gì)</p>
+                <p><span class="check">✓</span> Lắc xúc xắc (1-6)</p>
+                <p><span class="check">✓</span> Di chuyển dựa trên giá trị xúc xắc</p>
+                <p><span class="check">✓</span> Hệ thống lượt chơi (người chơi lần lượt)</p>
+                <p><span class="check">✓</span> Đồng bộ thời gian thực với Socket.IO</p>
+            </div>
+
+            <!-- Files Section -->
+            <div class="section">
+                <h2><span class="emoji">📁</span>Tệp Quan Trọng</h2>
+                
+                <div style="background: #fffacd; border-left: 4px solid #ffc107; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                    <strong style="color: #856404;">⭐ TỆP CHÍNH: frontend-complete.html</strong>
+                    <p style="margin: 10px 0 0 0; color: #856404;">Mở tệp này trực tiếp trong trình duyệt - không cần cài đặt gì!</p>
+                </div>
+
+                <p><strong>📖 README-FRONTEND.md</strong> - Hướng dẫn nhanh</p>
+                <p><strong>📚 SETUP-FRONTEND.md</strong> - Hướng dẫn chi tiết</p>
+                <p><strong>📊 FRONTEND-SUMMARY.md</strong> - Tóm tắt đầy đủ</p>
+                <p><strong>📱 FRONTEND-QUICKSTART.html</strong> - Hướng dẫn tương tác</p>
+                <p><strong>📂 frontend/</strong> - Dự án React đầy đủ (tùy chọn)</p>
+            </div>
+
+            <!-- Troubleshooting Section -->
+            <div class="section">
+                <h2><span class="emoji">🛠️</span>Khắc Phục Sự Cố</h2>
+                
+                <h3 style="color: #667eea; margin: 15px 0 10px 0;">❌ "Cannot connect to server"</h3>
+                <p>→ Kiểm tra backend đang chạy: chạy <span class="code">npm start</span> ở thư mục gốc</p>
+                <p>→ Backend phải chạy trên: <span class="code">http://localhost:3000</span></p>
+
+                <h3 style="color: #667eea; margin: 15px 0 10px 0;">❌ Người chơi không cập nhật theo thời gian thực</h3>
+                <p>→ Mở Console (F12) và kiểm tra lỗi</p>
+                <p>→ Xác minh backend đang chạy</p>
+                <p>→ Làm mới trang (Ctrl+R hoặc Cmd+R)</p>
+
+                <h3 style="color: #667eea; margin: 15px 0 10px 0;">❌ Không thể tạo/tham gia phòng</h3>
+                <p>→ Xác minh backend API đang phản hồi</p>
+                <p>→ Kiểm tra tab Network trong DevTools</p>
+
+                <h3 style="color: #667eea; margin: 15px 0 10px 0;">❌ Backend ở cổng khác</h3>
+                <p>→ Mở <span class="code">frontend-complete.html</span> bằng trình chỉnh sửa văn bản</p>
+                <p>→ Tìm dòng: <span class="code">const API_BASE = 'http://localhost:3000';</span></p>
+                <p>→ Thay <span class="code">3000</span> bằng cổng của bạn</p>
+                <p>→ Lưu và làm mới trình duyệt</p>
+            </div>
+
+            <!-- How to Play Section -->
+            <div class="section">
+                <h2><span class="emoji">🎮</span>Cách Chơi</h2>
+                
+                <h3 style="color: #667eea; margin: 15px 0 10px 0;">1️⃣ Thiết lập</h3>
+                <p>Nhập tên → Chọn biểu tượng → Chọn vai trò → Tham gia phòng</p>
+
+                <h3 style="color: #667eea; margin: 15px 0 10px 0;">2️⃣ Sảnh Phòng</h3>
+                <p>Chờ chủ phòng bắt đầu game (cần 2+ người chơi)</p>
+
+                <h3 style="color: #667eea; margin: 15px 0 10px 0;">3️⃣ Bàn Chơi</h3>
+                <p>→ Xem "Lượt hiện tại" để biết ai đang chơi<br>
+                → Khi đến lượt bạn, nhấp "Lắc Xúc Xắc"<br>
+                → Nhân vật tự động di chuyển<br>
+                → Nhấp "Kết Thúc Lượt" để chuyển cho người chơi tiếp theo</p>
+            </div>
+
+            <!-- FAQ Section -->
+            <div class="section">
+                <h2><span class="emoji">❓</span>Câu Hỏi Thường Gặp</h2>
+                
+                <p><strong>Q: Có cần cài đặt gì không?</strong><br>
+                A: Không! Chỉ cần mở tệp HTML trực tiếp trong trình duyệt.</p>
+
+                <p><strong>Q: Các bạn bè của tôi có thể chơi trên máy tính khác không?</strong><br>
+                A: Có! Thay thế <span class="code">localhost</span> bằng địa chỉ IP của server của bạn.</p>
+
+                <p><strong>Q: Khán giả sau có thể trở thành người chơi không?</strong><br>
+                A: Không, họ phải tham gia phòng mới với vai trò người chơi.</p>
+
+                <p><strong>Q: Trò chơi này hoạt động trên điện thoại không?</strong><br>
+                A: Có! Giao diện phản hồi hoàn toàn trên tất cả các thiết bị.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🎲 Monopoly Game • Phiên bản 1.0 • Sẵn sàng chơi!</p>
+            <p style="font-size: 14px; margin-top: 10px;">Mở <strong>frontend-complete.html</strong> để bắt đầu</p>
+        </div>
+    </div>
+
+    <script>
+        function openGame() {
+            const path = window.location.href.substring(0, window.location.href.lastIndexOf('/')) + '/frontend-complete.html';
+            window.open(path, '_blank');
+        }
+
+        function showHelp() {
+            alert(`
+🎮 HƯỚNG DẪN NHANH:
+
+1. Khởi động Backend:
+   cd <thư mục gốc>
+   npm start
+
+2. Mở Frontend:
+   Nhấp đôi vào: frontend-complete.html
+
+3. Chơi:
+   - Nhập tên
+   - Chọn biểu tượng
+   - Chọn vai trò
+   - Tham gia phòng
+   - Bắt đầu chơi!
+
+📞 LIÊN HỆ:
+- Xem README-FRONTEND.md
+- Xem SETUP-FRONTEND.md
+- Kiểm tra Console (F12) để xem lỗi
+            `);
+        }
+
+        // Check if frontend is available
+        fetch('frontend-complete.html', { method: 'HEAD' })
+            .then(r => console.log(r.ok ? '✓ Frontend available' : '✗ Frontend not found'))
+            .catch(() => console.warn('⚠ Frontend file not found'));
+
+        // Detect backend
+        fetch('http://localhost:3000/server-config')
+            .then(r => console.log('✓ Backend is running'))
+            .catch(() => console.warn('⚠ Backend not running on port 3000'));
+    </script>
+</body>
+</html>

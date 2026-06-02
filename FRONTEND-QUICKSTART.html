@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly Game Frontend - Test & Instructions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 24px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .section h3 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .section p, .section li {
+            color: #666;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .section ul {
+            margin-left: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .status-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+
+        .status-box.success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+
+        .status-box.warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+
+        .status-box.error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+
+        .status-box strong {
+            color: #333;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .feature-card {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            padding: 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .feature-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .feature-card p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .footer {
+            background: #f9f9f9;
+            border-top: 1px solid #e0e0e0;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.running {
+            background: #28a745;
+        }
+
+        .status-indicator.stopped {
+            background: #dc3545;
+        }
+
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .step {
+            margin-bottom: 20px;
+            padding-left: 40px;
+            position: relative;
+        }
+
+        .step:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        table th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #333;
+        }
+
+        table tr:hover {
+            background: #f9f9f9;
+        }
+
+        .highlight {
+            background: #fffacd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎲 Monopoly Game Frontend</h1>
+            <p>Complete Setup & Testing Guide</p>
+        </div>
+
+        <div class="content">
+            <!-- Quick Start Section -->
+            <div class="section">
+                <h2>⚡ Quick Start (30 seconds)</h2>
+                
+                <div class="status-box success">
+                    <strong>✓ Easiest Method:</strong> Just open <span class="highlight">frontend-complete.html</span> in your browser!
+                </div>
+
+                <h3>What You Need:</h3>
+                <ul>
+                    <li>A modern web browser (Chrome, Firefox, Safari, Edge)</li>
+                    <li>Backend server running on <span class="highlight">http://localhost:3000</span></li>
+                </ul>
+
+                <h3>Steps:</h3>
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <strong>Start the Backend</strong><br>
+                    Open terminal in project root and run: <code style="background: #f5f5f5; padding: 2px 6px;">npm start</code>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <strong>Open Frontend</strong><br>
+                    Double-click <span class="highlight">frontend-complete.html</span> or open with your browser
+                </div>
+
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <strong>Play!</strong><br>
+                    Enter your name, choose avatar, and start playing
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="openFrontend()">📂 Open frontend-complete.html</button>
+                    <button class="btn-secondary" onclick="openInstructions()">📖 View Instructions</button>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="section">
+                <h2>✨ Features</h2>
+
+                <h3>Page 1: Room List</h3>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <h4>🏠 Browse Rooms</h4>
+                        <p>See all available game rooms with player counts</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>➕ Create Rooms</h4>
+                        <p>Create new game rooms with custom names</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>👤 Player Setup</h4>
+                        <p>Enter name and choose from 8 avatars</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🎭 Role Selection</h4>
+                        <p>Choose to play or spectate</p>
+                    </div>
+                </div>
+
+                <h3>Page 2: Room Lobby</h3>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <h4>👥 Player List</h4>
+                        <p>See all connected players and their status</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>👁️ Spectators</h4>
+                        <p>View spectators watching the game</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>💰 Money Display</h4>
+                        <p>Each player starts with $1500</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🎮 Start Game</h4>
+                        <p>Host can start game (requires 2+ players)</p>
+                    </div>
+                </div>
+
+                <h3>Page 3: Game Board</h3>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <h4>🎲 Board Game</h4>
+                        <p>20-tile monopoly board</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🎰 Dice Rolling</h4>
+                        <p>Roll dice (1-6) on your turn</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🚶 Movement</h4>
+                        <p>Move based on dice value</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📊 Real-time Sync</h4>
+                        <p>All players see updates instantly</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Locations Section -->
+            <div class="section">
+                <h2>📁 Files</h2>
+
+                <h3>Main Files:</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Purpose</th>
+                            <th>How to Use</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="highlight">frontend-complete.html</span></td>
+                            <td>Complete standalone frontend</td>
+                            <td>Open directly in browser - no setup needed!</td>
+                        </tr>
+                        <tr>
+                            <td>frontend/</td>
+                            <td>Full React project</td>
+                            <td>For development: <code style="background: #f5f5f5; padding: 2px 6px;">cd frontend && npm install && npm start</code></td>
+                        </tr>
+                        <tr>
+                            <td>README-FRONTEND.md</td>
+                            <td>Quick reference guide</td>
+                            <td>Read for overview and troubleshooting</td>
+                        </tr>
+                        <tr>
+                            <td>SETUP-FRONTEND.md</td>
+                            <td>Detailed setup guide</td>
+                            <td>Detailed instructions for both methods</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- How to Play Section -->
+            <div class="section">
+                <h2>🎮 How to Play</h2>
+
+                <h3>Setup (First Time):</h3>
+                <div class="step">
+                    <span class="step-number">1</span>
+                    Enter your player name (max 20 characters)
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    Click your favorite avatar from 8 options (🤖 🦁 🐯 🦊 🐻 🐼 🐨 🐸)
+                </div>
+                <div class="step">
+                    <span class="step-number">3</span>
+                    Choose role: <strong>Player</strong> (to play) or <strong>Spectator</strong> (to watch)
+                </div>
+                <div class="step">
+                    <span class="step-number">4</span>
+                    Create new room or join existing room
+                </div>
+
+                <h3>Game (In Lobby):</h3>
+                <div class="step">
+                    <span class="step-number">1</span>
+                    Wait for host to gather players (need at least 2)
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    Host clicks "Start Game" when ready
+                </div>
+
+                <h3>Playing (On Board):</h3>
+                <div class="step">
+                    <span class="step-number">1</span>
+                    Watch the "Current Turn" indicator - it shows whose turn it is
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    When it's your turn, click "Roll Dice" button
+                </div>
+                <div class="step">
+                    <span class="step-number">3</span>
+                    Your token moves automatically by the dice value
+                </div>
+                <div class="step">
+                    <span class="step-number">4</span>
+                    Click "End Turn" to pass to next player
+                </div>
+                <div class="step">
+                    <span class="step-number">5</span>
+                    Repeat until game ends
+                </div>
+            </div>
+
+            <!-- Troubleshooting Section -->
+            <div class="section">
+                <h2>🛠️ Troubleshooting</h2>
+
+                <h3>Issue: "Cannot connect to server"</h3>
+                <div class="status-box error">
+                    <strong>Solution:</strong>
+                    <ul>
+                        <li>Make sure backend is running: <code style="background: #fff3cd; padding: 2px 6px;">npm start</code> in project root</li>
+                        <li>Backend should be on <code style="background: #fff3cd; padding: 2px 6px;">http://localhost:3000</code></li>
+                        <li>Check firewall isn't blocking localhost</li>
+                        <li>Try opening <code style="background: #fff3cd; padding: 2px 6px;">http://localhost:3000/api-docs</code> to verify backend</li>
+                    </ul>
+                </div>
+
+                <h3>Issue: Players not showing up in real-time</h3>
+                <div class="status-box error">
+                    <strong>Solution:</strong>
+                    <ul>
+                        <li>Open browser console (F12) and check for errors</li>
+                        <li>Verify backend is running</li>
+                        <li>Check that Socket.IO is working in Network tab</li>
+                        <li>Refresh the page and try again</li>
+                    </ul>
+                </div>
+
+                <h3>Issue: Can't roll dice</h3>
+                <div class="status-box error">
+                    <strong>Solution:</strong>
+                    <ul>
+                        <li>Check "Current Turn" - button only works on your turn</li>
+                        <li>You can only roll once per turn</li>
+                        <li>Click "End Turn" to enable rolling again</li>
+                    </ul>
+                </div>
+
+                <h3>Issue: Backend on different port</h3>
+                <div class="status-box error">
+                    <strong>Solution:</strong>
+                    <ul>
+                        <li>Open <span class="highlight">frontend-complete.html</span> with a text editor</li>
+                        <li>Find: <code style="background: #f5f5f5; padding: 2px 6px;">const API_BASE = 'http://localhost:3000';</code></li>
+                        <li>Change <code style="background: #f5f5f5; padding: 2px 6px;">3000</code> to your port number</li>
+                        <li>Save and reload in browser</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Technical Section -->
+            <div class="section">
+                <h2>⚙️ Technical Details</h2>
+
+                <h3>Technologies Used:</h3>
+                <ul>
+                    <li><strong>React 18</strong> - UI framework</li>
+                    <li><strong>Socket.IO</strong> - Real-time communication</li>
+                    <li><strong>Axios</strong> - HTTP client</li>
+                    <li><strong>React Router v6</strong> - Page navigation</li>
+                </ul>
+
+                <h3>API Endpoints:</h3>
+                <div class="code-block">
+GET /api/rooms                      (Get all rooms)
+POST /api/rooms                     (Create room)
+GET /api/rooms/:id                  (Get room details)
+POST /api/rooms/:id/join            (Join as player)
+POST /api/rooms/:id/spectators      (Join as spectator)
+POST /api/rooms/:id/start           (Start game)
+POST /api/rooms/:id/rollDice        (Roll dice)
+POST /api/rooms/:id/endTurn         (End turn)
+                </div>
+
+                <h3>Socket Events:</h3>
+                <div class="code-block">
+Client → Server:
+  joinRoom, joinAsSpectator, startGame, 
+  rollDice, endTurn, leaveRoom
+
+Server → Client:
+  gameStarted, diceRolled, playerMoved, 
+  turnEnded, playerJoined, spectatorJoined
+                </div>
+            </div>
+
+            <!-- Support Section -->
+            <div class="section">
+                <h2>❓ FAQ</h2>
+
+                <h3>Q: Do I need to install anything to use the frontend?</h3>
+                <p><strong>A:</strong> No! The standalone <span class="highlight">frontend-complete.html</span> works in any browser. Just need the backend running.</p>
+
+                <h3>Q: Can I use this on mobile?</h3>
+                <p><strong>A:</strong> Yes! The frontend is fully responsive and works on phones and tablets.</p>
+
+                <h3>Q: Can spectators become players?</h3>
+                <p><strong>A:</strong> No, they must create a new room or join as a player. Their role is set when they join.</p>
+
+                <h3>Q: What if someone disconnects?</h3>
+                <p><strong>A:</strong> The backend removes them from the room and broadcasts the change. Game continues with remaining players.</p>
+
+                <h3>Q: How do I play with friends remotely?</h3>
+                <p><strong>A:</strong> Change <span class="highlight">API_BASE</span> in the HTML to your server's IP address instead of localhost.</p>
+
+                <h3>Q: Can I customize the game?</h3>
+                <p><strong>A:</strong> Yes! Edit <span class="highlight">frontend-complete.html</span> to add more avatars, change colors, or modify board size.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🎲 Monopoly Game Frontend • Version 1.0 • Ready to play!</p>
+        </div>
+    </div>
+
+    <script>
+        function openFrontend() {
+            // Try to open the frontend-complete.html file
+            const path = window.location.href.substring(0, window.location.href.lastIndexOf('/')) + '/frontend-complete.html';
+            window.open(path, '_blank');
+        }
+
+        function openInstructions() {
+            alert(`
+📖 QUICK INSTRUCTIONS:
+
+1. Make sure backend is running (npm start)
+2. Open frontend-complete.html in your browser
+3. Enter your name and choose an avatar
+4. Create a new room or join an existing one
+5. Wait for host to start the game
+6. Roll dice and move on the board
+7. Take turns with other players
+
+KEYBOARD SHORTCUTS:
+- F12: Open Developer Tools (for troubleshooting)
+- Ctrl/Cmd + R: Refresh page
+
+For detailed help, read README-FRONTEND.md or SETUP-FRONTEND.md
+            `);
+        }
+
+        // Check if frontend-complete.html is available
+        fetch('frontend-complete.html', { method: 'HEAD' })
+            .then(r => {
+                if (!r.ok) throw new Error('Not found');
+                console.log('✓ frontend-complete.html is available');
+            })
+            .catch(err => {
+                console.warn('⚠ frontend-complete.html not found in same directory');
+            });
+
+        // Check backend availability
+        fetch('http://localhost:3000/api/rooms')
+            .then(r => {
+                console.log('✓ Backend is running on http://localhost:3000');
+            })
+            .catch(err => {
+                console.warn('⚠ Backend not running. Start it with: npm start');
+            });
+    </script>
+</body>
+</html>

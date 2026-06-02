@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Monopoly Socket Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, button { padding: 8px; margin: 4px; }
+    .room { border: 1px solid #ddd; padding: 8px; margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>Monopoly - Test Socket & Rooms</h1>
+
+  <section>
+    <h2>Create Room</h2>
+    <input id="roomName" placeholder="Room name" />
+    <input id="roomHost" placeholder="Host name" />
+    <input id="roomMax" placeholder="Max players" type="number" value="4" />
+    <button id="createBtn">Create</button>
+    <div id="createResult"></div>
+  </section>
+
+  <section>
+    <h2>Available Rooms</h2>
+    <button id="refreshBtn">Refresh</button>
+    <div id="rooms"></div>
+  </section>
+
+  <section>
+    <h2>Socket Events</h2>
+    <div id="events"></div>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const eventsEl = document.getElementById('events');
+    function log(msg){
+      const d = document.createElement('div'); d.textContent = msg; eventsEl.prepend(d);
+    }
+
+    socket.on('connect', () => log('Socket connected: ' + socket.id));
+    socket.on('playerJoined', data => log('playerJoined: ' + JSON.stringify(data)));
+    socket.on('playerLeft', data => log('playerLeft: ' + JSON.stringify(data)));
+    socket.on('diceRolled', data => log('diceRolled: ' + JSON.stringify(data)));
+
+    // Create room
+    document.getElementById('createBtn').addEventListener('click', async () => {
+      const name = document.getElementById('roomName').value;
+      const host = document.getElementById('roomHost').value;
+      const maxPlayers = Number(document.getElementById('roomMax').value) || 4;
+      if(!name || !host){ alert('Enter name and host'); return; }
+      const res = await fetch('/api/rooms', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ name, host, maxPlayers })
+      });
+      const data = await res.json();
+      document.getElementById('createResult').textContent = JSON.stringify(data);
+      refreshRooms();
+    });
+
+    // Refresh rooms
+    async function refreshRooms(){
+      const res = await fetch('/api/rooms');
+      const list = await res.json();
+      const el = document.getElementById('rooms'); el.innerHTML = '';
+      list.forEach(r => {
+        const div = document.createElement('div'); div.className='room';
+        div.innerHTML = `<strong>${r.name}</strong> (id: ${r._id})<br>host: ${r.host} | players: ${r.players?.length||0}/${r.maxPlayers} | status: ${r.status}`;
+        const joinBtn = document.createElement('button'); joinBtn.textContent='Join';
+        joinBtn.addEventListener('click', async () => {
+          const playerName = prompt('Enter your player name');
+          if(!playerName) return;
+          // call REST to join
+          const res = await fetch(`/api/rooms/${r._id}/join`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name: playerName, socketId: socket.id }) });
+          const json = await res.json();
+          log('REST join response: ' + JSON.stringify(json));
+          // emit socket join
+          socket.emit('joinRoom', { roomId: r._id, name: playerName });
+          refreshRooms();
+        });
+        const rollBtn = document.createElement('button'); rollBtn.textContent='Roll Dice';
+        rollBtn.addEventListener('click', () => {
+          socket.emit('rollDice', { roomId: r._id });
+        });
+        const startBtn = document.createElement('button'); startBtn.textContent='Start Room';
+        startBtn.addEventListener('click', async () => {
+          const res = await fetch(`/api/rooms/${r._id}/start`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'}
+          });
+          const json = await res.json();
+          log('REST start response: ' + JSON.stringify(json));
+          refreshRooms();
+        });
+        const endBtn = document.createElement('button'); endBtn.textContent='End Room';
+        endBtn.addEventListener('click', async () => {
+          const res = await fetch(`/api/rooms/${r._id}/end`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'}
+          });
+          const json = await res.json();
+          log('REST end response: ' + JSON.stringify(json));
+          refreshRooms();
+        });
+        div.appendChild(document.createElement('br'));
+        div.appendChild(joinBtn); div.appendChild(rollBtn); div.appendChild(startBtn); div.appendChild(endBtn);
+        el.appendChild(div);
+      });
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', refreshRooms);
+    refreshRooms();
+  </script>
+</body>
+</html>
