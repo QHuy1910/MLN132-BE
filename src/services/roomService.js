@@ -35,6 +35,7 @@ const clampPosition = (position, boardSize) => {
 const applyPositionDelta = (room, playerIndex, delta) => {
   const player = room.players[playerIndex];
   if (!player) return;
+  if (player.finishedRank) return;
 
   const currentPosition = player.position || 0;
   player.position = clampPosition(currentPosition + delta, room.boardSize);
@@ -43,13 +44,24 @@ const applyPositionDelta = (room, playerIndex, delta) => {
 const pickRandomOtherPlayerIndex = (room, currentPlayerIndex) => {
   const otherIndexes = room.players
     .map((_, index) => index)
-    .filter((index) => index !== currentPlayerIndex);
+    .filter((index) => index !== currentPlayerIndex && !room.players[index]?.finishedRank);
 
   if (!otherIndexes.length) return null;
   return otherIndexes[Math.floor(Math.random() * otherIndexes.length)];
 };
 
-const applyEventEffect = (room, currentPlayerIndex, reward) => {
+const getTargetPlayerIndex = (room, currentPlayerIndex, targetPlayerId) => {
+  if (!targetPlayerId) return null;
+
+  const targetIndex = room.players.findIndex((player, index) => {
+    if (index === currentPlayerIndex || player.finishedRank) return false;
+    return player.playerId === targetPlayerId || player.name === targetPlayerId;
+  });
+
+  return targetIndex >= 0 ? targetIndex : null;
+};
+
+const applyEventEffect = (room, currentPlayerIndex, reward, targetPlayerId = null) => {
   if (!reward) return;
 
   const currentPlayer = room.players[currentPlayerIndex];
@@ -77,7 +89,10 @@ const applyEventEffect = (room, currentPlayerIndex, reward) => {
       currentPlayer.skipTurns = Number(currentPlayer.skipTurns || 0) + Math.max(1, value || 1);
       break;
     case 'move_target_back': {
-      const targetIndex = pickRandomOtherPlayerIndex(room, currentPlayerIndex);
+      const targetIndex = getTargetPlayerIndex(room, currentPlayerIndex, targetPlayerId);
+      if (targetIndex == null) {
+        throw new Error('Vui lòng chọn người chơi để lùi bước');
+      }
       if (targetIndex != null) {
         applyPositionDelta(room, targetIndex, -value);
       }
@@ -103,6 +118,27 @@ const applyEventEffect = (room, currentPlayerIndex, reward) => {
   }
 };
 
+const getFinishPosition = (room) => Math.max(0, (room.boardSize || DEFAULT_BOARD_SIZE) - 1);
+
+const getFinishedCount = (room) => room.players.filter((player) => player.finishedRank).length;
+
+const markPlayerFinishedIfNeeded = (room, playerIndex) => {
+  const player = room.players[playerIndex];
+  if (!player || player.finishedRank) return false;
+
+  if ((player.position || 0) < getFinishPosition(room)) return false;
+
+  player.finishedRank = getFinishedCount(room) + 1;
+  player.finishedAt = new Date();
+  player.skipTurns = 0;
+  return true;
+};
+
+const areAllPlayersFinished = (room) => {
+  if (!room.players.length) return false;
+  return room.players.every((player) => player.finishedRank);
+};
+
 const getNextTurnIndex = (room) => {
   if (!room.players.length) return 0;
 
@@ -112,6 +148,11 @@ const getNextTurnIndex = (room) => {
   while (remainingChecks > 0) {
     nextIndex = (nextIndex + 1) % room.players.length;
     const player = room.players[nextIndex];
+    if (player.finishedRank) {
+      remainingChecks -= 1;
+      continue;
+    }
+
     const skipTurns = Number(player.skipTurns || 0);
 
     if (skipTurns > 0) {
@@ -268,13 +309,14 @@ module.exports = {
 
     if (playerIndex >= room.players.length) throw new Error('Invalid player');
 
-    const finishPosition = Math.max(0, room.boardSize - 1);
+    const finishPosition = getFinishPosition(room);
     const currentPosition = room.players[playerIndex].position || 0;
     const nextPosition = Math.min(currentPosition + steps, finishPosition);
 
     room.players[playerIndex].position = nextPosition;
 
-    if (nextPosition >= finishPosition) {
+    markPlayerFinishedIfNeeded(room, playerIndex);
+    if (areAllPlayersFinished(room)) {
       room.status = 'finished';
     }
 
@@ -292,22 +334,43 @@ module.exports = {
     return room;
   },
 
-  resolveEventQuestion: async (id, difficulty, isCorrect) => {
+  resolveEventQuestion: async (id, difficulty, isCorrect, correctCountArg = null) => {
     const room = await Room.findById(id);
     if (!room) throw new Error('Room not found');
     if (room.status !== 'playing') throw new Error('Game is not playing');
 
     const currentPlayerIndex = room.currentTurnIndex;
-    const choices = pickUniqueRewardChoices(difficulty, isCorrect, 3);
+    const hasCorrectCount = correctCountArg !== null && correctCountArg !== undefined;
+    const correctCount = hasCorrectCount
+      ? Math.max(0, Math.min(3, Number(correctCountArg) || 0))
+      : (isCorrect ? 1 : 0);
+    const rewardDifficulty = hasCorrectCount
+      ? (correctCount >= 3 ? 'hard' : correctCount === 2 ? 'medium' : correctCount === 1 ? 'easy' : null)
+      : difficulty;
+
+    if (!rewardDifficulty) {
+      return {
+        room,
+        currentPlayerIndex,
+        choices: [],
+        isCorrect: false,
+        correctCount,
+        rewardDifficulty: null,
+        noReward: true
+      };
+    }
+
+    const choices = pickUniqueRewardChoices(rewardDifficulty, true, 3);
 
     if (!choices.length) {
-      throw new Error('Không có thưởng/phạt cho mức độ đã chọn');
+      throw new Error('Không có phần thưởng cho mức độ đã đạt');
     }
 
     room.pendingEventReward = {
       currentPlayerIndex,
-      difficulty,
-      isCorrect: !!isCorrect,
+      difficulty: rewardDifficulty,
+      isCorrect: true,
+      correctCount,
       choices
     };
 
@@ -317,11 +380,14 @@ module.exports = {
       room,
       currentPlayerIndex,
       choices,
-      isCorrect
+      isCorrect: true,
+      correctCount,
+      rewardDifficulty,
+      noReward: false
     };
   },
 
-  applyEventChoice: async (id, rewardId) => {
+  applyEventChoice: async (id, rewardId, targetPlayerId = null) => {
     const room = await Room.findById(id);
     if (!room) throw new Error('Room not found');
     if (room.status !== 'playing') throw new Error('Game is not playing');
@@ -333,12 +399,11 @@ module.exports = {
     const selectedReward = (pending.choices || []).find((item) => item.id === rewardId);
     if (!selectedReward) throw new Error('Invalid reward choice');
 
-    applyEventEffect(room, currentPlayerIndex, selectedReward);
+    applyEventEffect(room, currentPlayerIndex, selectedReward, targetPlayerId);
     room.pendingEventReward = null;
 
-    const finishPosition = Math.max(0, room.boardSize - 1);
-    const currentPlayer = room.players[currentPlayerIndex];
-    if ((currentPlayer?.position || 0) >= finishPosition) {
+    markPlayerFinishedIfNeeded(room, currentPlayerIndex);
+    if (areAllPlayersFinished(room)) {
       room.status = 'finished';
     }
 
@@ -454,9 +519,17 @@ module.exports = {
       return room;
     }
 
-    // Calculate ranking based on highest position
+    // Calculate ranking based on finish order first, then highest position.
     const sortedPlayers = [...room.players].sort((a, b) => {
-      // Primary: position (higher is better)
+      const aFinishedRank = Number(a.finishedRank || 0);
+      const bFinishedRank = Number(b.finishedRank || 0);
+
+      if (aFinishedRank && bFinishedRank && aFinishedRank !== bFinishedRank) {
+        return aFinishedRank - bFinishedRank;
+      }
+      if (aFinishedRank && !bFinishedRank) return -1;
+      if (!aFinishedRank && bFinishedRank) return 1;
+
       if (b.position !== a.position) return b.position - a.position;
       return String(a.name).localeCompare(String(b.name));
     });
@@ -468,7 +541,7 @@ module.exports = {
       rank: index + 1,
       position: player.position,
       character: player.character,
-      finishTime: new Date()
+      finishTime: player.finishedAt || new Date()
     }));
 
     room.ranking = ranking;

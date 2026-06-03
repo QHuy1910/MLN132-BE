@@ -1,6 +1,6 @@
 const roomService = require('../services/roomService');
 
-const EVENT_CELL_INDEXES = new Set([5, 9, 13, 18, 22, 26, 30, 34, 39, 43, 49, 53, 57, 63]);
+const EVENT_CELL_INDEXES = new Set([3, 5, 7, 9, 13, 16, 18, 20, 22, 26, 28, 30, 33, 34, 37, 39, 41, 43, 46, 49, 52, 53, 54, 57, 59, 63, 64]);
 
 const normalizeName = (name = '') => String(name).trim().toLowerCase();
 const generatePlayerId = () => `player-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -327,7 +327,7 @@ module.exports = (io) => {
       }
     });
 
-    socket.on('resolveEventQuestion', async ({ roomId, difficulty, isCorrect }, ack) => {
+    socket.on('resolveEventQuestion', async ({ roomId, difficulty, isCorrect, correctCount }, ack) => {
       try {
         if (userInfo.isSpectator) throw new Error('Spectators cannot resolve event questions');
         const room = await roomService.getRoomById(roomId);
@@ -339,14 +339,50 @@ module.exports = (io) => {
           throw new Error('Not your turn!');
         }
 
-        const resolution = await roomService.resolveEventQuestion(roomId, difficulty, !!isCorrect);
+        const resolution = await roomService.resolveEventQuestion(roomId, difficulty, !!isCorrect, correctCount);
         const updatedRoom = resolution.room;
+
+        if (resolution.noReward) {
+          io.to(roomId).emit('eventRewardChoices', {
+            playerName: currentPlayer?.name,
+            playerIndex: resolution.currentPlayerIndex,
+            isCorrect: false,
+            correctCount: resolution.correctCount,
+            difficulty: null,
+            rewardDifficulty: null,
+            choices: [],
+            noReward: true,
+            players: updatedRoom.players,
+            status: updatedRoom.status,
+            message: 'Ban chua tra loi dung cau nao nen khong nhan thuong.'
+          });
+
+          const nextRoom = await roomService.nextTurn(roomId);
+          const nextPlayer = nextRoom.players[nextRoom.currentTurnIndex];
+
+          io.to(roomId).emit('turnEnded', {
+            previousPlayerIndex: resolution.currentPlayerIndex,
+            currentTurnIndex: nextRoom.currentTurnIndex,
+            currentPlayer: nextPlayer,
+            players: nextRoom.players,
+            hasRolledThisTurn: false,
+            status: nextRoom.status,
+            winner: null
+          });
+
+          if (typeof ack === 'function') {
+            ack({ ok: true });
+          }
+          return;
+        }
 
         io.to(roomId).emit('eventRewardChoices', {
           playerName: currentPlayer?.name,
           playerIndex: resolution.currentPlayerIndex,
           isCorrect: resolution.isCorrect,
-          difficulty,
+          correctCount: resolution.correctCount,
+          difficulty: resolution.rewardDifficulty || difficulty,
+          rewardDifficulty: resolution.rewardDifficulty || difficulty,
           choices: resolution.choices,
           players: updatedRoom.players,
           status: updatedRoom.status,
@@ -365,7 +401,7 @@ module.exports = (io) => {
       }
     });
 
-    socket.on('chooseEventReward', async ({ roomId, rewardId }) => {
+    socket.on('chooseEventReward', async ({ roomId, rewardId, targetPlayerId }) => {
       try {
         if (userInfo.isSpectator) throw new Error('Spectators cannot choose event rewards');
         const room = await roomService.getRoomById(roomId);
@@ -377,15 +413,19 @@ module.exports = (io) => {
           throw new Error('Not your turn!');
         }
 
-        const applied = await roomService.applyEventChoice(roomId, rewardId);
+        const applied = await roomService.applyEventChoice(roomId, rewardId, targetPlayerId);
         const updatedRoom = applied.room;
         const resolvedPlayer = updatedRoom.players[applied.currentPlayerIndex];
+        const targetPlayer = targetPlayerId
+          ? updatedRoom.players.find((player) => player.playerId === targetPlayerId || player.name === targetPlayerId)
+          : null;
         const gameFinished = updatedRoom.status === 'finished';
 
         io.to(roomId).emit('eventRewardApplied', {
           playerName: resolvedPlayer?.name,
           playerIndex: applied.currentPlayerIndex,
           reward: applied.reward,
+          targetPlayerName: targetPlayer?.name || null,
           isCorrect: applied.isCorrect,
           players: updatedRoom.players,
           status: updatedRoom.status,

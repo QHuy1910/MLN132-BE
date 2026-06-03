@@ -55,6 +55,16 @@ const PlayerSchema = new Schema({
   skipTurns: {
     type: Number,
     default: 0
+  },
+
+  finishedRank: {
+    type: Number,
+    default: null
+  },
+
+  finishedAt: {
+    type: Date,
+    default: null
   }
 });
 
