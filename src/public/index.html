@@ -16,7 +16,7 @@
     <h2>Create Room</h2>
     <input id="roomName" placeholder="Room name" />
     <input id="roomHost" placeholder="Host name" />
-    <input id="roomMax" placeholder="Max players" type="number" value="4" />
+    <input id="roomMax" placeholder="Max players" type="number" value="5" />
     <button id="createBtn">Create</button>
     <div id="createResult"></div>
   </section>
@@ -49,7 +49,7 @@
     document.getElementById('createBtn').addEventListener('click', async () => {
       const name = document.getElementById('roomName').value;
       const host = document.getElementById('roomHost').value;
-      const maxPlayers = Number(document.getElementById('roomMax').value) || 4;
+      const maxPlayers = Number(document.getElementById('roomMax').value) || 5;
       if(!name || !host){ alert('Enter name and host'); return; }
       const res = await fetch('/api/rooms', {
         method: 'POST', headers: {'Content-Type':'application/json'},

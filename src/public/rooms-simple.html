@@ -556,9 +556,8 @@
                   <select id="createMaxPlayers">
                     <option value="2">2 người chơi</option>
                     <option value="3">3 người chơi</option>
-                    <option value="4" selected>4 người chơi</option>
-                    <option value="5">5 người chơi</option>
-                    <option value="6">6 người chơi</option>
+                    <option value="4">4 người chơi</option>
+                    <option value="5" selected>5 người chơi</option>
                   </select>
                 </div>
               </div>
@@ -797,7 +796,7 @@
     async function createRoom() {
       const name = (el('createRoomName').value || '').trim();
       const host = (el('createHostName').value || el('playerName').value || '').trim();
-      const maxPlayers = parseInt(el('createMaxPlayers').value, 10) || 4;
+      const maxPlayers = parseInt(el('createMaxPlayers').value, 10) || 5;
 
       if (!name) {
         log('Vui lòng nhập tên phòng', 'error');
@@ -826,7 +825,7 @@
         // Clear form
         el('createRoomName').value = '';
         el('createHostName').value = '';
-        el('createMaxPlayers').value = '4';
+        el('createMaxPlayers').value = '5';
 
         // Collapse the form
         el('createToggle').classList.remove('open');

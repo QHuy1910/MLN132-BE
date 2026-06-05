@@ -84,7 +84,7 @@ const swaggerDocument = {
                 properties: {
                   name: { type: 'string' },
                   host: { type: 'string' },
-                  maxPlayers: { type: 'integer', default: 4 }
+                  maxPlayers: { type: 'integer', default: 5 }
                 },
                 required: ['name', 'host']
               },

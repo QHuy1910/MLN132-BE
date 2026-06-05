@@ -4,6 +4,36 @@ const EVENT_CELL_INDEXES = new Set([3, 5, 7, 9, 13, 16, 18, 20, 22, 26, 28, 30, 
 
 const normalizeName = (name = '') => String(name).trim().toLowerCase();
 const generatePlayerId = () => `player-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+const getQuestionKey = (question = {}) => {
+  const questionId = question.id ?? question.question;
+  if (questionId === undefined || questionId === null || questionId === '') return '';
+  return `${question.difficulty || 'easy'}:${questionId}`;
+};
+const describeShieldBlocks = (blockedEffects = []) => (
+  blockedEffects
+    .map((item) => `${item.result?.playerName || item.playerName || 'Nguoi choi'} chan ${item.result?.effectName || item.effectName || 'hieu ung bat loi'} bang khien`)
+);
+
+const describeTrapTrigger = (trapTrigger) => {
+  if (!trapTrigger) return null;
+
+  const trapNames = (trapTrigger.traps || [])
+    .map((trap) => trap?.penalty?.name || 'Hinh phat');
+  const shieldMessages = describeShieldBlocks(trapTrigger.blockedEffects || []);
+  const parts = [`${trapTrigger.playerName} dap ${trapNames.length} bay: ${trapNames.join(', ')}`];
+
+  if (shieldMessages.length) {
+    parts.push(shieldMessages.join('; '));
+  }
+
+  return parts.join('. ');
+};
+
+const describeRewardShieldBlocks = (blockedEffects = []) => {
+  const shieldMessages = describeShieldBlocks(blockedEffects);
+  return shieldMessages.length ? shieldMessages.join('; ') : null;
+};
+
 const emitSocketError = (socket, eventName, error, userInfo = {}) => {
   const message = error?.message || String(error);
   console.error(`[socket:${eventName}] ${message}`, {
@@ -46,6 +76,7 @@ module.exports = (io) => {
           await room.save();
         } else {
           // Player not in room yet, need to add them (e.g., room creator joining)
+          room.maxPlayers = roomService.normalizeMaxPlayers(room.maxPlayers);
           if (room.players.length >= room.maxPlayers) throw new Error('Room is full');
           const newPlayer = {
             playerId: playerId || generatePlayerId(),
@@ -167,6 +198,7 @@ module.exports = (io) => {
           currentTurnIndex: startedRoom.currentTurnIndex,
           currentPlayer: startedRoom.players[startedRoom.currentTurnIndex],
           boardSize: startedRoom.boardSize,
+          traps: startedRoom.traps || [],
           status: 'playing',
           hasRolledThisTurn: startedRoom.hasRolledThisTurn || false
         });
@@ -179,6 +211,11 @@ module.exports = (io) => {
       try {
         const room = await roomService.getRoomById(roomId);
         if (!room) throw new Error('Room not found');
+        const questionKey = getQuestionKey(question);
+        if (questionKey && !room.usedQuestionKeys.includes(questionKey)) {
+          room.usedQuestionKeys.push(questionKey);
+          await room.save();
+        }
         
         const currentPlayer = room.players[room.currentTurnIndex];
         const recipientSocketIds = new Set();
@@ -239,7 +276,7 @@ module.exports = (io) => {
           throw new Error('Not your turn!');
         }
 
-        const { diceValues, total } = await roomService.rollDice(roomId);
+        const { diceValues, total, modifier } = await roomService.rollDice(roomId);
         
         io.to(roomId).emit('diceRolled', { 
           socketId: socket.id,
@@ -247,6 +284,7 @@ module.exports = (io) => {
           diceValues,
           diceValue: total,
           total,
+          modifier,
           currentTurnIndex: room.currentTurnIndex
         });
       } catch (error) {
@@ -271,9 +309,29 @@ module.exports = (io) => {
         }
 
         const currentPlayerIndex = room.currentTurnIndex;
-        const updatedRoom = await roomService.movePlayer(roomId, currentPlayerIndex, steps);
+        const requestedSteps = Math.max(0, Number(steps) || 0);
+
+        if (requestedSteps <= 0) {
+          const nextRoom = await roomService.nextTurn(roomId);
+          const nextPlayer = nextRoom.players[nextRoom.currentTurnIndex];
+
+          io.to(roomId).emit('turnEnded', {
+            previousPlayerIndex: currentPlayerIndex,
+            currentTurnIndex: nextRoom.currentTurnIndex,
+            currentPlayer: nextPlayer,
+            players: nextRoom.players,
+            traps: nextRoom.traps || [],
+            hasRolledThisTurn: false,
+            status: nextRoom.status,
+            winner: null
+          });
+          return;
+        }
+
+        const updatedRoom = await roomService.movePlayer(roomId, currentPlayerIndex, requestedSteps, { triggerTraps: false });
         const movedPlayer = updatedRoom.players[currentPlayerIndex];
         const gameFinished = updatedRoom.status === 'finished';
+        const pendingTrap = updatedRoom._pendingTrap;
 
         io.to(roomId).emit('playerMoved', {
           playerName: movedPlayer.name,
@@ -281,9 +339,67 @@ module.exports = (io) => {
           newPosition: movedPlayer.position,
           boardSize: updatedRoom.boardSize,
           players: updatedRoom.players,
+          traps: updatedRoom.traps || [],
+          trapTriggered: updatedRoom._triggeredTrap || null,
           status: updatedRoom.status,
-          winner: gameFinished ? movedPlayer : null
+          winner: gameFinished ? movedPlayer : null,
+          message: describeTrapTrigger(updatedRoom._triggeredTrap)
         });
+
+        if (pendingTrap) {
+          const trapDelayMs = Math.min(Math.max(requestedSteps * 170 + 450, 800), 4500);
+
+          setTimeout(async () => {
+            try {
+              const trapRoom = await roomService.triggerTrapsAtCurrentPosition(roomId, currentPlayerIndex);
+              const trapPlayer = trapRoom.players[currentPlayerIndex];
+              const trapFinished = trapRoom.status === 'finished';
+              io.to(roomId).emit('playerMoved', {
+                playerName: trapPlayer.name,
+                playerIndex: currentPlayerIndex,
+                newPosition: trapPlayer.position,
+                boardSize: trapRoom.boardSize,
+                players: trapRoom.players,
+                traps: trapRoom.traps || [],
+                trapTriggered: trapRoom._triggeredTrap || null,
+                status: trapRoom.status,
+                winner: trapFinished ? trapPlayer : null,
+                message: describeTrapTrigger(trapRoom._triggeredTrap)
+              });
+
+              if (trapFinished) {
+                io.to(roomId).emit('turnEnded', {
+                  previousPlayerIndex: currentPlayerIndex,
+                  currentTurnIndex: trapRoom.currentTurnIndex,
+                  currentPlayer: trapPlayer,
+                  players: trapRoom.players,
+                  traps: trapRoom.traps || [],
+                  hasRolledThisTurn: false,
+                  status: trapRoom.status,
+                  winner: trapPlayer
+                });
+                return;
+              }
+
+              const nextRoom = await roomService.nextTurn(roomId);
+              const nextPlayer = nextRoom.players[nextRoom.currentTurnIndex];
+
+              io.to(roomId).emit('turnEnded', {
+                previousPlayerIndex: currentPlayerIndex,
+                currentTurnIndex: nextRoom.currentTurnIndex,
+                currentPlayer: nextPlayer,
+                players: nextRoom.players,
+                traps: nextRoom.traps || [],
+                hasRolledThisTurn: false,
+                status: nextRoom.status,
+                winner: null
+              });
+            } catch (error) {
+              emitSocketError(socket, 'triggerTrapAfterMove', error, userInfo);
+            }
+          }, trapDelayMs);
+          return;
+        }
 
         if (gameFinished) {
           io.to(roomId).emit('turnEnded', {
@@ -291,6 +407,7 @@ module.exports = (io) => {
             currentTurnIndex: updatedRoom.currentTurnIndex,
             currentPlayer: movedPlayer,
             players: updatedRoom.players,
+            traps: updatedRoom.traps || [],
             hasRolledThisTurn: false,
             status: updatedRoom.status,
             winner: movedPlayer
@@ -304,6 +421,7 @@ module.exports = (io) => {
             playerIndex: currentPlayerIndex,
             cellIndex: movedPlayer.position,
             players: updatedRoom.players,
+            traps: updatedRoom.traps || [],
             status: updatedRoom.status
           });
           return;
@@ -401,7 +519,7 @@ module.exports = (io) => {
       }
     });
 
-    socket.on('chooseEventReward', async ({ roomId, rewardId, targetPlayerId }) => {
+    socket.on('chooseEventReward', async ({ roomId, rewardId, targetPlayerId, trapCellIndex }) => {
       try {
         if (userInfo.isSpectator) throw new Error('Spectators cannot choose event rewards');
         const room = await roomService.getRoomById(roomId);
@@ -413,25 +531,37 @@ module.exports = (io) => {
           throw new Error('Not your turn!');
         }
 
-        const applied = await roomService.applyEventChoice(roomId, rewardId, targetPlayerId);
+        const applied = await roomService.applyEventChoice(roomId, rewardId, targetPlayerId, trapCellIndex);
         const updatedRoom = applied.room;
         const resolvedPlayer = updatedRoom.players[applied.currentPlayerIndex];
         const targetPlayer = targetPlayerId
           ? updatedRoom.players.find((player) => player.playerId === targetPlayerId || player.name === targetPlayerId)
           : null;
         const gameFinished = updatedRoom.status === 'finished';
+        const shieldBlockMessage = describeRewardShieldBlocks(applied.blockedEffects || []);
+        const rewardMessage = shieldBlockMessage
+          || (applied.placedTrap
+            ? `Da dat bay o o ${applied.placedTrap.cellIndex}: ${applied.placedTrap.penalty?.name || 'Hinh phat'}`
+            : (applied.isCorrect
+              ? `Nhan: ${applied.reward?.name || 'Phan thuong'}`
+              : `Bi phat: ${applied.reward?.name || 'Hinh phat'}`));
 
         io.to(roomId).emit('eventRewardApplied', {
           playerName: resolvedPlayer?.name,
           playerIndex: applied.currentPlayerIndex,
           reward: applied.reward,
           targetPlayerName: targetPlayer?.name || null,
+          placedTrap: applied.placedTrap || null,
           isCorrect: applied.isCorrect,
           players: updatedRoom.players,
+          traps: updatedRoom.traps || [],
           status: updatedRoom.status,
-          message: applied.isCorrect
-            ? `✅ Nhận: ${applied.reward?.name || 'Phần thưởng'}`
-            : `❌ Bị phạt: ${applied.reward?.name || 'Hình phạt'}`,
+          message: applied.placedTrap
+            ? `Da dat bay o o ${applied.placedTrap.cellIndex}: ${applied.placedTrap.penalty?.name || 'Hinh phat'}`
+            : (applied.isCorrect
+              ? `✅ Nhận: ${applied.reward?.name || 'Phần thưởng'}`
+              : `❌ Bị phạt: ${applied.reward?.name || 'Hình phạt'}`),
+          message: rewardMessage,
           winner: gameFinished ? resolvedPlayer : null
         });
 
@@ -487,6 +617,34 @@ module.exports = (io) => {
       }
     });
 
+    socket.on('eventActionPreview', async ({ roomId, actionType, reward }) => {
+      try {
+        if (userInfo.isSpectator) throw new Error('Spectators cannot preview event actions');
+        const room = await roomService.getRoomById(roomId);
+        if (!room) throw new Error('Room not found');
+        if (room.status !== 'playing') throw new Error('Game is not playing');
+
+        const currentPlayer = room.players[room.currentTurnIndex];
+        if (currentPlayer && currentPlayer.name !== userInfo.name) {
+          throw new Error('Not your turn!');
+        }
+
+        room.spectators
+          .map((spectator) => spectator.socketId)
+          .filter(Boolean)
+          .forEach((spectatorSocketId) => {
+            io.to(spectatorSocketId).emit('eventActionPreview', {
+              playerName: currentPlayer?.name,
+              playerIndex: room.currentTurnIndex,
+              actionType,
+              reward
+            });
+          });
+      } catch (error) {
+        emitSocketError(socket, 'eventActionPreview', error, userInfo);
+      }
+    });
+
     socket.on('endTurn', async ({ roomId }) => {
       try {
         if (userInfo.isSpectator) throw new Error('Spectators cannot end turns');
@@ -526,6 +684,8 @@ module.exports = (io) => {
           currentPlayer: room.players[room.currentTurnIndex],
           hasRolledThisTurn: room.hasRolledThisTurn,
           boardSize: room.boardSize,
+          traps: room.traps || [],
+          usedQuestionKeys: room.usedQuestionKeys || [],
           status: room.status
         });
       } catch (error) {
