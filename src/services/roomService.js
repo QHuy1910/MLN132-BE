@@ -684,6 +684,36 @@ module.exports = {
     return room.save();
   },
 
+  updatePlayerPositions: async (id, positionUpdates = []) => {
+    const room = await Room.findById(id);
+    if (!room) throw new Error('Room not found');
+    if (!Array.isArray(positionUpdates)) throw new Error('Invalid position updates');
+
+    const updatesByKey = new Map();
+    positionUpdates.forEach((update) => {
+      const playerId = update?.playerId ? String(update.playerId) : '';
+      const name = update?.name ? normalizeName(update.name) : '';
+      const rawPosition = Number(update?.position);
+      const position = clampPosition(Number.isFinite(rawPosition) ? rawPosition : 0, room.boardSize);
+
+      if (playerId) updatesByKey.set(`id:${playerId}`, position);
+      if (name) updatesByKey.set(`name:${name}`, position);
+    });
+
+    room.players.forEach((player) => {
+      const nextPosition = updatesByKey.get(`id:${player.playerId}`) ?? updatesByKey.get(`name:${normalizeName(player.name)}`);
+      if (nextPosition === undefined) return;
+
+      player.position = nextPosition;
+      if (nextPosition < Math.max(0, (room.boardSize || DEFAULT_BOARD_SIZE) - 1)) {
+        player.finishedRank = null;
+        player.finishedAt = null;
+      }
+    });
+
+    return room.save();
+  },
+
   completeRoom: async (id) => {
     const room = await Room.findById(id);
     if (!room) throw new Error('Room not found');

@@ -673,6 +673,30 @@ module.exports = (io) => {
       }
     });
 
+    socket.on('updatePlayerPositions', async ({ roomId, positions }) => {
+      try {
+        if (userInfo.isSpectator) throw new Error('Spectators cannot update player positions');
+        const room = await roomService.getRoomById(roomId);
+        if (!room) throw new Error('Room not found');
+        if (room.host !== userInfo.name) throw new Error('Only the host can update player positions');
+
+        const updatedRoom = await roomService.updatePlayerPositions(roomId, positions);
+        io.to(roomId).emit('playerPositionsUpdated', {
+          roomId,
+          players: updatedRoom.players,
+          spectators: updatedRoom.spectators,
+          currentTurnIndex: updatedRoom.currentTurnIndex,
+          currentPlayer: updatedRoom.players[updatedRoom.currentTurnIndex],
+          boardSize: updatedRoom.boardSize,
+          traps: updatedRoom.traps || [],
+          status: updatedRoom.status,
+          message: `${userInfo.name} da cap nhat vi tri nguoi choi`
+        });
+      } catch (error) {
+        emitSocketError(socket, 'updatePlayerPositions', error, userInfo);
+      }
+    });
+
     socket.on('getGameState', async ({ roomId }) => {
       try {
         const room = await roomService.getRoomById(roomId);
