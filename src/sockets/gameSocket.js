@@ -1,14 +1,10 @@
 const roomService = require('../services/roomService');
+const questionService = require('../services/questionService');
 
 const EVENT_CELL_INDEXES = new Set([3, 5, 7, 9, 13, 16, 18, 20, 22, 26, 28, 30, 33, 34, 37, 39, 41, 43, 46, 49, 52, 53, 54, 57, 59, 63, 64]);
 
 const normalizeName = (name = '') => String(name).trim().toLowerCase();
 const generatePlayerId = () => `player-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-const getQuestionKey = (question = {}) => {
-  const questionId = question.id ?? question.question;
-  if (questionId === undefined || questionId === null || questionId === '') return '';
-  return `${question.difficulty || 'easy'}:${questionId}`;
-};
 const describeShieldBlocks = (blockedEffects = []) => (
   blockedEffects
     .map((item) => `${item.result?.playerName || item.playerName || 'Nguoi choi'} chan ${item.result?.effectName || item.effectName || 'hieu ung bat loi'} bang khien`)
@@ -43,6 +39,26 @@ const emitSocketError = (socket, eventName, error, userInfo = {}) => {
     role: userInfo.role
   });
   socket.emit('error', { message });
+};
+
+const emitQuestionToTurnParticipants = (io, socket, roomId, room, question) => {
+  const currentPlayer = room.players[room.currentTurnIndex];
+  const recipientSocketIds = new Set();
+
+  if (currentPlayer?.socketId) {
+    recipientSocketIds.add(currentPlayer.socketId);
+  }
+  if (currentPlayer?.name) {
+    recipientSocketIds.add(socket.id);
+  }
+  room.spectators
+    .map((spectator) => spectator.socketId)
+    .filter(Boolean)
+    .forEach((spectatorSocketId) => recipientSocketIds.add(spectatorSocketId));
+
+  recipientSocketIds.forEach((recipientSocketId) => {
+    io.to(recipientSocketId).emit('showQuestion', { question });
+  });
 };
 
 module.exports = (io) => {
@@ -199,6 +215,7 @@ module.exports = (io) => {
           currentPlayer: startedRoom.players[startedRoom.currentTurnIndex],
           boardSize: startedRoom.boardSize,
           traps: startedRoom.traps || [],
+          showTrapsOnMap: startedRoom.showTrapsOnMap !== false,
           status: 'playing',
           hasRolledThisTurn: startedRoom.hasRolledThisTurn || false
         });
@@ -207,57 +224,58 @@ module.exports = (io) => {
       }
     });
 
-    socket.on('showQuestion', async ({ roomId, question }) => {
+    socket.on('requestQuestion', async ({ roomId, difficulty, meta }, ack) => {
       try {
-        const room = await roomService.getRoomById(roomId);
-        if (!room) throw new Error('Room not found');
-        const questionKey = getQuestionKey(question);
-        if (questionKey && !room.usedQuestionKeys.includes(questionKey)) {
-          room.usedQuestionKeys.push(questionKey);
-          await room.save();
-        }
-        
-        const currentPlayer = room.players[room.currentTurnIndex];
-        const recipientSocketIds = new Set();
+        if (userInfo.isSpectator) throw new Error('Spectators cannot request questions');
+        const result = await questionService.createQuestionForRoom(roomId, userInfo.name, difficulty, meta);
 
-        if (currentPlayer?.socketId) {
-          recipientSocketIds.add(currentPlayer.socketId);
+        if (!result.question) {
+          if (typeof ack === 'function') {
+            ack({ ok: false, message: 'Khong tim thay cau hoi cho muc do nay' });
+          }
+          return;
         }
-        if (currentPlayer?.name === userInfo.name) {
-          recipientSocketIds.add(socket.id);
-        }
-        room.spectators
-          .map((spectator) => spectator.socketId)
-          .filter(Boolean)
-          .forEach((spectatorSocketId) => recipientSocketIds.add(spectatorSocketId));
 
-        recipientSocketIds.forEach((recipientSocketId) => {
-          io.to(recipientSocketId).emit('showQuestion', { question });
-        });
+        emitQuestionToTurnParticipants(io, socket, roomId, result.room, result.question);
+        if (typeof ack === 'function') {
+          ack({ ok: true });
+        }
       } catch (error) {
-        socket.emit('error', { message: error.message });
+        emitSocketError(socket, 'requestQuestion', error, userInfo);
+        if (typeof ack === 'function') {
+          ack({ ok: false, message: error?.message || String(error) });
+        }
       }
     });
 
-    socket.on('questionAnswerRevealed', async ({ roomId, selectedIndex, correctIndex, isCorrect }) => {
+    socket.on('showQuestion', async (_payload, ack) => {
+      const message = 'Questions must be requested from the server';
+      socket.emit('error', { message });
+      if (typeof ack === 'function') {
+        ack({ ok: false, message });
+      }
+    });
+
+    socket.on('answerQuestion', async ({ roomId, selectedIndex }, ack) => {
       try {
         if (userInfo.isSpectator) throw new Error('Spectators cannot answer questions');
-        const room = await roomService.getRoomById(roomId);
-        if (!room) throw new Error('Room not found');
-        if (room.status !== 'playing') throw new Error('Game is not playing');
+        const result = await questionService.answerActiveQuestion(roomId, userInfo.name, selectedIndex);
 
-        const currentPlayer = room.players[room.currentTurnIndex];
-        if (currentPlayer && currentPlayer.name !== userInfo.name) {
-          throw new Error('Not your turn!');
+        io.to(roomId).emit('questionAnswerRevealed', result);
+        if (typeof ack === 'function') {
+          ack({ ok: true, ...result });
         }
+      } catch (error) {
+        emitSocketError(socket, 'answerQuestion', error, userInfo);
+        if (typeof ack === 'function') {
+          ack({ ok: false, message: error?.message || String(error) });
+        }
+      }
+    });
 
-        io.to(roomId).emit('questionAnswerRevealed', {
-          playerName: currentPlayer?.name,
-          playerIndex: room.currentTurnIndex,
-          selectedIndex,
-          correctIndex,
-          isCorrect: !!isCorrect
-        });
+    socket.on('questionAnswerRevealed', async () => {
+      try {
+        throw new Error('Answers must be submitted to the server');
       } catch (error) {
         emitSocketError(socket, 'questionAnswerRevealed', error, userInfo);
       }
@@ -629,6 +647,10 @@ module.exports = (io) => {
           throw new Error('Not your turn!');
         }
 
+        if (actionType === 'trapPlacement') {
+          return;
+        }
+
         room.spectators
           .map((spectator) => spectator.socketId)
           .filter(Boolean)
@@ -675,7 +697,6 @@ module.exports = (io) => {
 
     socket.on('updatePlayerPositions', async ({ roomId, positions }) => {
       try {
-        if (userInfo.isSpectator) throw new Error('Spectators cannot update player positions');
         const room = await roomService.getRoomById(roomId);
         if (!room) throw new Error('Room not found');
         if (room.host !== userInfo.name) throw new Error('Only the host can update player positions');
@@ -697,6 +718,22 @@ module.exports = (io) => {
       }
     });
 
+    socket.on('setTrapVisibility', async ({ roomId, showTrapsOnMap }) => {
+      try {
+        const room = await roomService.getRoomById(roomId);
+        if (!room) throw new Error('Room not found');
+        if (room.host !== userInfo.name) throw new Error('Only the host can update trap visibility');
+
+        const updatedRoom = await roomService.setTrapVisibility(roomId, showTrapsOnMap);
+        io.to(roomId).emit('trapVisibilityChanged', {
+          roomId,
+          showTrapsOnMap: updatedRoom.showTrapsOnMap !== false
+        });
+      } catch (error) {
+        emitSocketError(socket, 'setTrapVisibility', error, userInfo);
+      }
+    });
+
     socket.on('getGameState', async ({ roomId }) => {
       try {
         const room = await roomService.getRoomById(roomId);
@@ -709,6 +746,7 @@ module.exports = (io) => {
           hasRolledThisTurn: room.hasRolledThisTurn,
           boardSize: room.boardSize,
           traps: room.traps || [],
+          showTrapsOnMap: room.showTrapsOnMap !== false,
           usedQuestionKeys: room.usedQuestionKeys || [],
           status: room.status
         });

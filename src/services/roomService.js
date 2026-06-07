@@ -386,7 +386,9 @@ module.exports = {
       : DEFAULT_BOARD_SIZE;
     room.currentTurnIndex = 0;
     room.hasRolledThisTurn = false;
+    room.activeQuestion = null;
     room.traps = [];
+    room.showTrapsOnMap = true;
     return room.save();
   },
 
@@ -711,6 +713,14 @@ module.exports = {
       }
     });
 
+    return room.save();
+  },
+
+  setTrapVisibility: async (id, showTrapsOnMap) => {
+    const room = await Room.findById(id);
+    if (!room) throw new Error('Room not found');
+
+    room.showTrapsOnMap = !!showTrapsOnMap;
     return room.save();
   },
 
